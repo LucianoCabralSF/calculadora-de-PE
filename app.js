@@ -630,6 +630,7 @@ function calcular() {
   const b = base();
   $$('[data-out="produto"]').forEach(el => { el.textContent = D().produto || ''; });
   renderPainel(b); renderAbsorcao(b); renderEquilibrio(b); renderPedido(b); renderMix(); renderAbc(); renderPreco(b);
+  if (typeof CHAT !== 'undefined') CHAT.atualizar();
   salvar();
 }
 function tudo() {
@@ -641,6 +642,8 @@ function tudo() {
 
 document.addEventListener('input', e => {
   const el = e.target;
+  // Qualquer dado digitado libera o chat do Controller consultivo
+  if (el.dataset.k || el.dataset.arr || el.dataset.lin !== undefined) D().alimentado = true;
   if (el.dataset.k) {
     D()[el.dataset.k] = el.value;
     if (el.dataset.k === 'un') aplicarTextos();

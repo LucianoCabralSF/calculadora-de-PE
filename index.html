@@ -40,6 +40,7 @@
     <div class="acoes-ia"><button class="btn" id="iaIr">Ler e preencher</button><button class="btn ghost-dark" id="iaParar" hidden>Parar</button></div>
     <div id="iaStatus"></div>
     <div id="iaResultado"></div>
+    <p class="mini muted" id="chatDica">💬 Depois que você alimentar os dados (importando um arquivo ou digitando nos campos), aparece no canto da tela o <strong>Controller consultivo</strong> para conversar sobre os números.</p>
   </section>
 
   <!-- LINHAS DO DOCUMENTO -->
@@ -281,8 +282,24 @@
   <footer class="rodape muted">Baseado no material "Custos, Sistemas de Custeio, Gestão e Formação de Preço" (pré-work do MBA). Exemplo de Produtos: caso Microcervejaria Lúpulo Dourado. Exemplo de Serviços: consultoria fictícia. Números que o caso não informa são ilustrativos.</footer>
 </main>
 
+<button id="chatBtn" class="chat-btn" hidden title="Conversar com o Controller consultivo">💬 <span>Controller consultivo</span></button>
+<section id="chatPainel" class="chat-painel" hidden aria-label="Chat com o Controller consultivo">
+  <header class="chat-topo">
+    <div><strong>Controller consultivo</strong><br><span class="mini">analisa os dados que estão na calculadora</span></div>
+    <div><button class="chat-acao" id="chatNova" title="Começar nova conversa">Nova</button><button class="chat-acao" id="chatFechar" title="Fechar">✕</button></div>
+  </header>
+  <div class="chat-msgs" id="chatMsgs"></div>
+  <div class="chat-sug" id="chatSug"></div>
+  <div class="chat-entrada">
+    <textarea id="chatTexto" rows="2" maxlength="4000" placeholder="Pergunte sobre seus números... (Enter envia)"></textarea>
+    <button class="btn" id="chatEnviar">Enviar</button><button class="btn ghost-dark" id="chatParar" hidden>Parar</button>
+  </div>
+  <p class="chat-rodape">A IA pode errar. Confira os números antes de decidir.</p>
+</section>
+
 <script src="app.js"></script>
 <script src="dre.js"></script>
 <script src="ia.js"></script>
+<script src="chat.js"></script>
 </body>
 </html>

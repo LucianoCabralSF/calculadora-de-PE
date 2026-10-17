@@ -92,6 +92,7 @@ const IA = (() => {
     const modo = r.modo === 'servicos' ? 'servicos' : 'produtos';
     ST.modo = modo;
     const alvo = ST[modo], antes = clone(alvo);
+    alvo.alimentado = true;
     const copia = grupo => Object.entries(grupo || {}).forEach(([k, v]) => {
       if (temValor(v) && k in NOMES) alvo[k] = v.trim();
     });

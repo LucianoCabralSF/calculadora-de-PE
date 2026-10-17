@@ -1,40 +1,14 @@
 // Servidor da IA: recebe o texto do documento, pergunta ao Claude e devolve só os dados.
 // A chave fica na variável de ambiente ANTHROPIC_API_KEY da Vercel e nunca vai para o navegador.
-import Anthropic from '@anthropic-ai/sdk';
 import { SCHEMA, montarPrompt } from '../lib/prompt.mjs';
+import { client, criarLimite, barrar, codigoErro } from '../lib/protecao.mjs';
 
-// Chave sem workspace exige o cabeçalho anthropic-workspace-id (variável ANTHROPIC_WORKSPACE_ID)
-const client = new Anthropic(process.env.ANTHROPIC_WORKSPACE_ID
-  ? { defaultHeaders: { 'anthropic-workspace-id': process.env.ANTHROPIC_WORKSPACE_ID } }
-  : {});
 const LIMITE_TEXTO = 150000;
 const LIMITE_EXTRA = 500;
-
-// Limite simples por endereço IP (vale por instância do servidor; evita abuso casual)
-const JANELA_MS = 10 * 60 * 1000, MAX_POR_JANELA = 12;
-const acessos = new Map();
-function permitido(ip) {
-  const agora = Date.now();
-  const lista = (acessos.get(ip) || []).filter(t => agora - t < JANELA_MS);
-  if (lista.length >= MAX_POR_JANELA) { acessos.set(ip, lista); return false; }
-  lista.push(agora); acessos.set(ip, lista);
-  return true;
-}
+const permitido = criarLimite(12, 10 * 60 * 1000); // 12 leituras a cada 10 min por IP
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ code: 'metodo' });
-
-  // Só aceita pedidos feitos pela própria página (barra uso direto por outros sites)
-  let host = '';
-  try { host = new URL(req.headers.origin || '').host; } catch (e) { }
-  if (!host || host !== req.headers.host) return res.status(403).json({ code: 'origem' });
-  if (!String(req.headers['content-type'] || '').startsWith('application/json')) return res.status(415).json({ code: 'formato' });
-
-  // Na Vercel, x-real-ip / x-forwarded-for são definidos pela própria plataforma
-  const ip = String(req.headers['x-real-ip'] || req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'desconhecido';
-  if (!permitido(ip)) return res.status(429).json({ code: 'rate_limited' });
-
-  if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ code: 'sem_chave' });
+  if (barrar(req, res, permitido)) return;
 
   const { texto, nome, extra } = req.body || {};
   if (typeof texto !== 'string' || texto.trim().length < 20) return res.status(400).json({ code: 'vazio' });
@@ -57,14 +31,7 @@ export default async function handler(req, res) {
     const txt = resp.content.filter(b => b.type === 'text').map(b => b.text).join('');
     return res.status(200).json(JSON.parse(txt));
   } catch (e) {
-    console.error('Falha ao chamar o Claude:', e?.status, e?.name, String(e?.message || '').slice(0, 500));
-    if (e instanceof Anthropic.RateLimitError) return res.status(429).json({ code: 'rate_limited' });
-    if (e instanceof Anthropic.AuthenticationError || /workspace/i.test(e?.message || '')) return res.status(503).json({ code: 'sem_chave' });
-    if (e instanceof Anthropic.APIError) {
-      const semCredito = /credit/i.test(e.message || '');
-      return res.status(502).json({ code: semCredito ? 'sem_credito' : 'upstream_error' });
-    }
-    if (e instanceof SyntaxError) return res.status(502).json({ code: 'invalid_json' });
-    return res.status(500).json({ code: 'upstream_error' });
+    const [status, code] = codigoErro(e);
+    return res.status(status).json({ code });
   }
 }
