@@ -22,6 +22,7 @@
         <button data-modo="servicos">Serviços</button>
       </div>
       <button id="btnExemplo" class="btn ghost" title="Volta para os números do exemplo deste modo">Restaurar exemplo</button>
+      <button id="chatTopo" class="btn" hidden title="Abrir o chat do Controller consultivo">💬 Chat</button>
       <button id="btnImprimir" class="btn">Imprimir / PDF</button>
     </div>
   </div>
@@ -282,6 +283,7 @@
   <footer class="rodape muted">Baseado no material "Custos, Sistemas de Custeio, Gestão e Formação de Preço" (pré-work do MBA). Exemplo de Produtos: caso Microcervejaria Lúpulo Dourado. Exemplo de Serviços: consultoria fictícia. Números que o caso não informa são ilustrativos.</footer>
 </main>
 
+<div id="chatAviso" class="chat-aviso" hidden>O chat continua aqui. Clique para reabrir 👇</div>
 <button id="chatBtn" class="chat-btn" hidden title="Conversar com o Controller consultivo">💬 <span>Controller consultivo</span></button>
 <section id="chatPainel" class="chat-painel" hidden aria-label="Chat com o Controller consultivo">
   <header class="chat-topo">
@@ -299,6 +301,7 @@
 
 <script src="app.js"></script>
 <script src="dre.js"></script>
+<script src="dicas.js"></script>
 <script src="ia.js"></script>
 <script src="chat.js"></script>
 </body>

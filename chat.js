@@ -17,7 +17,12 @@ const CHAT = (() => {
     rate_limited: 'Muitas mensagens em pouco tempo. Espere alguns minutos e tente de novo.',
     refused: 'O Claude não quis responder a essa pergunta. Tente reformular.'
   };
-  let conversa = [], ctl = null, aberto = false;
+  const CHAVE_CHAT = 'calcController.chat';
+  let conversa = [], apagada = null, ctl = null, aberto = false, avisoTimer = null;
+  // A conversa fica guardada neste navegador (sobrevive a fechar o chat ou recarregar a página)
+  const guardar = () => { try { localStorage.setItem(CHAVE_CHAT, JSON.stringify(conversa.filter(m => m.content))); } catch (e) { } };
+  try { conversa = JSON.parse(localStorage.getItem(CHAVE_CHAT)) || []; } catch (e) { conversa = []; }
+  if (!Array.isArray(conversa)) conversa = [];
   const el = id => document.getElementById(id);
 
   /* ---------- retrato dos dados atuais ---------- */
@@ -92,7 +97,8 @@ Recomendação da ferramenta: ${textoDe('#pedRec')}`);
 
   function desenhar() {
     const box = el('chatMsgs');
-    box.innerHTML = (conversa.length ? '' : `<div class="chat-boas">Olá! Sou seu <strong>controller consultivo</strong>. Já estou vendo os números que você alimentou. Pergunte o que quiser ou comece por uma sugestão:</div>`) +
+    box.innerHTML = (apagada && !conversa.length ? `<div class="chat-desfazer">Conversa anterior apagada. <button class="chip" id="chatDesfazer">Desfazer</button></div>` : '') +
+      (conversa.length ? '' : `<div class="chat-boas">Olá! Sou seu <strong>controller consultivo</strong>. Já estou vendo os números que você alimentou. Pergunte o que quiser ou comece por uma sugestão:</div>`) +
       conversa.map(m => `<div class="chat-msg ${m.role === 'user' ? 'eu' : 'ia'}">${m.role === 'user' ? esc(m.content).replace(/\n/g, '<br>') : (m.content ? formatar(m.content) : '<span class="muted">Analisando os números...</span>')}</div>`).join('');
     el('chatSug').innerHTML = conversa.length ? '' : SUGESTOES.map(s => `<button class="chip" data-sug="${esc(s)}">${esc(s)}</button>`).join('');
     box.scrollTop = box.scrollHeight;
@@ -140,21 +146,33 @@ Recomendação da ferramenta: ${textoDe('#pedRec')}`);
     } finally {
       ctl = null;
       el('chatEnviar').hidden = false; el('chatParar').hidden = true;
+      apagada = null;
+      guardar();
       desenhar();
     }
   }
 
   /* ---------- abrir, fechar, aparecer ---------- */
   function abrir(sim) {
+    if (aberto && !sim) avisarOndeEsta();
     aberto = sim;
     el('chatPainel').hidden = !sim;
     el('chatBtn').classList.toggle('aberto', sim);
     if (sim) { desenhar(); el('chatTexto').focus(); }
   }
+  // Ao fechar, o botão pisca e mostra onde o chat continua disponível
+  function avisarOndeEsta() {
+    const b = el('chatBtn'), aviso = el('chatAviso');
+    b.classList.remove('pulsa'); void b.offsetWidth; b.classList.add('pulsa');
+    aviso.hidden = false;
+    clearTimeout(avisoTimer);
+    avisoTimer = setTimeout(() => { aviso.hidden = true; }, 4500);
+  }
   // Mostra o botão só depois que os dados foram alimentados neste modo
   function atualizar() {
     const pronto = !!D().alimentado;
     el('chatBtn').hidden = !pronto;
+    el('chatTopo').hidden = !pronto;
     el('chatDica').hidden = pronto;
     if (!pronto && aberto) abrir(false);
   }
@@ -162,7 +180,16 @@ Recomendação da ferramenta: ${textoDe('#pedRec')}`);
   function iniciar() {
     el('chatBtn').addEventListener('click', () => abrir(!aberto));
     el('chatFechar').addEventListener('click', () => abrir(false));
-    el('chatNova').addEventListener('click', () => { ctl?.abort(); conversa = []; desenhar(); });
+    el('chatTopo').addEventListener('click', () => abrir(true));
+    el('chatAviso').addEventListener('click', () => { el('chatAviso').hidden = true; abrir(true); });
+    el('chatNova').addEventListener('click', () => {
+      ctl?.abort();
+      if (conversa.length) apagada = conversa;
+      conversa = []; guardar(); desenhar();
+    });
+    el('chatMsgs').addEventListener('click', e => {
+      if (e.target.id === 'chatDesfazer' && apagada) { conversa = apagada; apagada = null; guardar(); desenhar(); }
+    });
     el('chatParar').addEventListener('click', () => ctl?.abort());
     el('chatEnviar').addEventListener('click', () => enviar(el('chatTexto').value));
     el('chatTexto').addEventListener('keydown', e => {
