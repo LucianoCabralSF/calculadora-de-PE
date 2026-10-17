@@ -79,6 +79,10 @@ input:focus,select:focus{outline:2px solid var(--pri-2);border-color:transparent
 .acoes-ia{display:flex;gap:8px;margin-top:12px}
 .btn.ghost-dark{background:transparent;color:var(--tx);border:1px solid var(--borda)}
 details summary{cursor:pointer}
+.seg{display:flex;flex-wrap:wrap;gap:4px;background:#eef1f5;border-radius:10px;padding:3px}
+.seg button{flex:1;border:0;background:transparent;font:inherit;font-size:.85rem;font-weight:600;color:var(--muted);padding:7px 10px;border-radius:8px;cursor:pointer}
+.seg button.ativo{background:#fff;color:var(--pri);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.tab.edit select{padding:6px 8px}
 .rodape{font-size:.8rem;text-align:center;padding:16px}
 
 @media (max-width:900px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:1fr 1fr}}
@@ -86,7 +90,7 @@ details summary{cursor:pointer}
 
 @media print{
   body{background:#fff;font-size:12px}
-  .topo .acoes,.abas,details.base,.card.ia,.btn{display:none!important}
+  .topo .acoes,.abas,details.base,.card.ia,#cardLinhas,.btn{display:none!important}
   .topo{background:#fff;color:var(--tx);border-bottom:2px solid var(--pri)}
   .card{break-inside:avoid;border-color:#ccc}
   .aba{display:none!important} .aba.ativa{display:block!important}

@@ -21,7 +21,7 @@ function parse(v) {
   const n = Number(s);
   return isFinite(n) ? n : 0;
 }
-const plural = u => /[aeiou]$/i.test(u) ? u + 's' : /m$/i.test(u) ? u.slice(0, -1) + 'ns' : /[rz]$/i.test(u) ? u + 'es' : u;
+const plural = u => u === 'R$ 1 de receita' ? 'reais de receita' : /[aeiou]$/i.test(u) ? u + 's' : /m$/i.test(u) ? u.slice(0, -1) + 'ns' : /[rz]$/i.test(u) ? u + 'es' : u;
 
 /* ---------- exemplos de cada modo ---------- */
 const EXEMPLOS = {
@@ -29,6 +29,7 @@ const EXEMPLOS = {
     produto: 'Linha clássica (média)', un: 'litro', preco: '12', cv: '5', dvp: '0',
     cfp: '300.000', df: '0', naoDes: '40.000', parc: '0', lucroDes: '50.000',
     volVend: '60.000', volProd: '60.000', cap: '120.000', desc: '10',
+    forma: 'unidade', rec: '', cvT: '', dvT: '', capR: '', linhas: [],
     pDesc: 'Chopp Pilsen — festival da rede de supermercados', pq: '10.000', pp: '8', pcv: '5', pdv: '0', prat: '5', pinc: '0', pcan: '0',
     chk: { marca: true, precedente: true, avista: true },
     mixRec: 'horas de tanque', mixH: '900',
@@ -56,6 +57,7 @@ const EXEMPLOS = {
     produto: 'Consultoria (hora técnica)', un: 'hora', preco: '180', cv: '60', dvp: '10',
     cfp: '90.000', df: '30.000', naoDes: '5.000', parc: '0', lucroDes: '25.000',
     volVend: '1.400', volProd: '1.400', cap: '2.000', desc: '10',
+    forma: 'unidade', rec: '', cvT: '', dvT: '', capR: '', linhas: [],
     pDesc: 'Projeto pontual de 200 horas para um cliente novo', pq: '200', pp: '110', pcv: '60', pdv: '10', prat: '64,29', pinc: '1.500', pcan: '0',
     chk: { precedente: true, escopo: true, antecipado: true },
     mixRec: 'horas de consultor sênior', mixH: '600',
@@ -160,14 +162,28 @@ const salvar = () => { try { localStorage.setItem(CHAVE, JSON.stringify(ST)); } 
 const D = () => ST[ST.modo];
 const g = k => parse(D()[k]);
 const isServ = () => ST.modo === 'servicos';
-const U = () => esc((D().un || 'un').trim() || 'un');
-const t = k => (TXT[ST.modo][k] || '').replace(/\{us\}/g, plural(U())).replace(/\{u\}/g, U());
+const isDRE = () => D().forma === 'dre';
+const UV = () => esc((D().un || 'un').trim() || 'un'); // unidade de venda (pedido, preço)
+const U = () => isDRE() ? 'R$ 1 de receita' : UV();    // unidade de análise (no modo DRE, cada R$ 1 vendido)
+const CHAVES_VENDA = ['pq', 'pp', 'pcv', 'prat', 'pMerc'];
+// Quantidade de equilíbrio: unidades no modo normal, reais no modo DRE
+const qtd = (v, us) => isDRE() ? brl(v) : `${num(Math.ceil(v))} ${us}`;
+const t = k => {
+  if (isDRE() && k === 'pcan') return 'Receita normal que se perderia (R$)';
+  const u = CHAVES_VENDA.includes(k) ? UV() : U();
+  return (TXT[ST.modo][k] || '').replace(/\{us\}/g, plural(u)).replace(/\{u\}/g, u);
+};
 
 /* ---------- cálculos base ---------- */
 function base() {
-  const preco = g('preco'), cv = g('cv'), dvp = g('dvp') / 100;
+  let preco = g('preco'), cv = g('cv'), dvp = g('dvp') / 100;
   const cfp = g('cfp'), df = g('df'), naoDes = g('naoDes'), parc = g('parc'), lucroDes = g('lucroDes');
-  const volVend = g('volVend'), volProd = isServ() ? volVend : g('volProd'), cap = g('cap');
+  let volVend = g('volVend'), volProd = isServ() ? volVend : g('volProd'), cap = g('cap');
+  if (isDRE()) { // totais do mês: a "unidade" passa a ser R$ 1 de receita
+    const rec = g('rec');
+    preco = 1; cv = rec ? g('cvT') / rec : 0; dvp = rec ? g('dvT') / rec : 0;
+    volVend = volProd = rec; cap = g('capR') || NaN;
+  }
   const dvu = preco * dvp, cvt = cv + dvu, mcu = preco - cvt, mcp = preco ? mcu / preco : NaN;
   const F = cfp + df;
   const pec = mcu > 0 ? F / mcu : NaN, pef = mcu > 0 ? Math.max(0, F - naoDes + parc) / mcu : NaN, pee = mcu > 0 ? (F + lucroDes) / mcu : NaN;
@@ -203,38 +219,39 @@ function renderPainel(b) {
     kpi(`Custo variável total por ${u}`, brl(b.cvt), 'custo + despesas variáveis'),
     kpi(`Custo cheio por ${u} (absorção)`, brl(b.cheio), `inclui ${brl(b.cfu)} de fixo rateado`),
     kpi('Lucro do mês', brl(b.lucro), 'visão gerencial', b.lucro >= 0 ? 'bom' : 'ruim'),
-    kpi('Equilíbrio contábil', `${num(Math.ceil(b.pec))} ${us}`, brl(b.pecR) + ' de faturamento mínimo'),
-    kpi('Equilíbrio financeiro', `${num(Math.ceil(b.pef))} ${us}`, 'cobre só o que sai do caixa'),
-    kpi('Equilíbrio econômico', `${num(Math.ceil(b.pee))} ${us}`, `inclui lucro de ${brl(b.lucroDes)}`),
+    kpi('Equilíbrio contábil', qtd(b.pec, us), brl(b.pecR) + ' de faturamento mínimo'),
+    kpi('Equilíbrio financeiro', qtd(b.pef, us), 'cobre só o que sai do caixa'),
+    kpi('Equilíbrio econômico', qtd(b.pee, us), `inclui lucro de ${brl(b.lucroDes)}`),
     kpi('Margem de segurança', pct(b.ms), 'quanto as vendas podem cair', b.ms >= .2 ? 'bom' : 'ruim'),
-    kpi('Uso da capacidade', pct(b.ocup), `${num(Math.max(0, b.cap - b.volProd))} ${us} livres`),
+    kpi('Uso da capacidade', pct(b.ocup), ok(b.cap) ? `${isDRE() ? brl(Math.max(0, b.cap - b.volProd)) : num(Math.max(0, b.cap - b.volProd)) + ' ' + us} livres` : 'informe a capacidade nos dados base'),
     kpi('Alavancagem operacional', ok(b.gao) ? num(b.gao, 1) + 'x' : '—', '+1% vendas = +GAO% lucro'),
-    kpi(`Preço piso por ${u}`, brl(b.piso), 'abaixo disso, cada venda dá prejuízo'),
-    kpi(`Preço pelo markup`, brl(m.preco), `multiplicador ${num(m.mult, 2)}`)
+    ...(isDRE() ? [] : [kpi(`Preço piso por ${u}`, brl(b.piso), 'abaixo disso, cada venda dá prejuízo'),
+      kpi(`Preço pelo markup`, brl(m.preco), `multiplicador ${num(m.mult, 2)}`)])
   ].join('');
 
   const resAbsU = b.preco - b.cheio - b.dvu;
   const ang = [
     ['Contábil (absorção)', `Quanto custa cada ${u} com tudo rateado?`, `${brl(b.cheio)} → resultado de ${sinal(resAbsU)} por ${u}`],
     ['Gerencial (variável)', `Quanto sobra de cada venda, por ${u}, para pagar a estrutura?`, `${sinal(b.mcu)} por ${u} (${pct(b.mcp)} do preço)`],
-    ['Equilíbrio contábil', 'Quanto vender para lucro zero?', `${num(Math.ceil(b.pec))} ${us}/mês`],
-    ['Caixa (sobrevivência)', 'Quanto vender para não faltar dinheiro?', `${num(Math.ceil(b.pef))} ${us}/mês`],
-    ['Sócios (econômico)', 'Quanto vender para remunerar o capital?', `${num(Math.ceil(b.pee))} ${us}/mês ${b.pee > b.cap ? '<span class="neg">(acima da capacidade!)</span>' : ''}`],
-    ['Risco', 'Quanto as vendas podem cair antes do prejuízo?', `${pct(b.ms)} (${num(Math.max(0, b.volVend - b.pec))} ${us})`],
-    ['Capacidade', 'Quanto da estrutura estou usando?', `${pct(b.ocup)} — ${num(Math.max(0, b.cap - b.volProd))} ${us} livres`],
+    ['Equilíbrio contábil', 'Quanto vender para lucro zero?', `${qtd(b.pec, us)}/mês`],
+    ['Caixa (sobrevivência)', 'Quanto vender para não faltar dinheiro?', `${qtd(b.pef, us)}/mês`],
+    ['Sócios (econômico)', 'Quanto vender para remunerar o capital?', `${qtd(b.pee, us)}/mês ${b.pee > b.cap ? '<span class="neg">(acima da capacidade!)</span>' : ''}`],
+    ['Risco', 'Quanto as vendas podem cair antes do prejuízo?', `${pct(b.ms)} (${qtd(Math.max(0, b.volVend - b.pec), us)})`],
+    ['Capacidade', 'Quanto da estrutura estou usando?', ok(b.cap) ? `${pct(b.ocup)} — ${isDRE() ? brl(Math.max(0, b.cap - b.volProd)) : num(Math.max(0, b.cap - b.volProd)) + ' ' + us} livres` : 'informe a capacidade nos dados base'],
     ['Sensibilidade', 'Se as vendas subirem 10%, o lucro sobe quanto?', ok(b.gao) ? `cerca de ${pct(b.gao * .1)} (${brl(b.mcu * b.volVend * .1)})` : '—'],
     ['Preço (curto prazo)', `Qual o menor preço aceitável com capacidade sobrando?`, `${brl(b.piso)} por ${u} (margem de contribuição zero)`],
     ['Preço (longo prazo)', 'Qual preço cobre tudo e dá o lucro desejado?', `${brl(m.preco)} pelo markup; atual ${brl(b.preco)}`]
   ];
+  if (isDRE()) ang.splice(-2, 2);
   $('#angulos').innerHTML = ang.map(r => `<tr><td><strong>${r[0]}</strong></td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('');
 
   const L = [];
   if (b.mcu <= 0) L.push(`<span class="neg">O preço não cobre nem o custo variável.</span> Cada venda aumenta o prejuízo. Rever preço ou custo variável é urgente.`);
   else if (resAbsU < 0) L.push(`<strong>Armadilha do rateio:</strong> pelo custo cheio, cada ${u} parece dar prejuízo de ${brl(-resAbsU)}, mas a margem de contribuição é positiva (${brl(b.mcu)}). Cortar vendas pioraria o resultado, porque o fixo continua.`);
-  if (b.lucro < 0 && b.mcu > 0) L.push(`A operação está abaixo do equilíbrio: faltam <strong>${num(Math.ceil(b.pec - b.volVend))} ${us}</strong> por mês para zerar o prejuízo.`);
+  if (b.lucro < 0 && b.mcu > 0) L.push(`A operação está abaixo do equilíbrio: faltam <strong>${qtd(b.pec - b.volVend, us)}</strong> por mês para zerar o prejuízo.`);
   else if (b.mcu > 0 && b.ms < .15) L.push(`Margem de segurança baixa (${pct(b.ms)}): uma queda pequena nas vendas já leva ao prejuízo.`);
   if (b.ocup < .75) L.push(`Há ${pct(1 - b.ocup)} de capacidade ociosa. Pedidos com margem de contribuição positiva ajudam a pagar o fixo que já existe (veja a aba ${t('abaPedido')}).`);
-  if (b.pee > b.cap) L.push(`<span class="neg">O lucro desejado não cabe na capacidade atual</span>: seriam necessárias ${num(Math.ceil(b.pee))} ${us}. Caminhos: aumentar preço, reduzir custos ou rever a meta.`);
+  if (b.pee > b.cap) L.push(`<span class="neg">O lucro desejado não cabe na capacidade atual</span>: seriam necessárias ${qtd(b.pee, us)}. Caminhos: aumentar preço, reduzir custos ou rever a meta.`);
   if (!isServ() && b.volProd > b.volVend) L.push(`Produção acima das vendas: ${brl((b.volProd - b.volVend) * b.cfu)} de custo fixo ficam "guardados" no estoque e inflam o lucro pela absorção.`);
   if (ok(b.gao) && b.gao > 3) L.push(`Alavancagem alta (${num(b.gao, 1)}x): o lucro é muito sensível ao volume — bom na alta, perigoso na baixa.`);
   if (b.mcu > 0 && b.pef < b.volVend && b.lucro < 0) L.push('Apesar do prejuízo contábil, o caixa ainda se paga (volume acima do equilíbrio financeiro).');
@@ -262,7 +279,7 @@ function renderAbsorcao(b) {
       ? aviso('alerta', `<strong>Atenção à armadilha.</strong> O relatório contábil mostra prejuízo de ${brl(-resAbsU)} por ${u}. Mas cada venda deixa <strong>${brl(b.mcu)}</strong> por ${u} para pagar a estrutura. Os ${brl(b.cfu)} de rateio continuariam existindo se a venda parasse.`)
       : aviso('ok', `As duas visões indicam resultado positivo. A margem de contribuição de ${brl(b.mcu)} por ${u} cobre o rateio de ${brl(b.cfu)}.`);
 
-  const niveis = [.25, .5, .75, 1].map(p => ({ rot: pct(p, 0) + ' da capacidade', v: b.cap * p }));
+  const niveis = ok(b.cap) ? [.25, .5, .75, 1].map(p => ({ rot: pct(p, 0) + ' da capacidade', v: b.cap * p })) : [];
   niveis.push({ rot: '<strong>Volume atual</strong>', v: b.volProd });
   niveis.sort((a, c) => a.v - c.v);
   $('#tabVolume').innerHTML = `<thead><tr><th>Volume</th><th>${us}</th><th>Fixo/${u}</th><th>Custo cheio</th><th>Resultado/${u}</th></tr></thead><tbody>` +
@@ -309,10 +326,10 @@ function renderEquilibrio(b) {
   $('#kpisPE').innerHTML = [
     kpi(`Margem de contribuição por ${u}`, brl(b.mcu), `preço − custos e despesas variáveis`, b.mcu > 0 ? 'bom' : 'ruim'),
     kpi('IMC — índice de margem de contribuição', pct(b.imc), `MC total ${brl(b.mcu * b.volVend)} ÷ receita bruta ${brl(b.preco * b.volVend)}`, b.imc > 0 ? 'bom' : 'ruim'),
-    kpi(`PEC em ${us} (volume de esforço)`, `${num(Math.ceil(b.pec))} ${us}`, `(${ff}) ${brl(b.F)} ÷ MC por ${u} ${brl(b.mcu)}`),
+    isDRE() ? '' : kpi(`PEC em ${us} (volume de esforço)`, qtd(b.pec, us), `(${ff}) ${brl(b.F)} ÷ MC por ${u} ${brl(b.mcu)}`),
     kpi('PEC em R$ (faturamento mínimo)', brl(b.pecR), `(${ff}) ${brl(b.F)} ÷ IMC ${pct(b.imc)}`),
-    kpi('Equilíbrio financeiro', `${num(Math.ceil(b.pef))} ${us}`, `${brl(b.pefR)} · (${ff} − ${brl(b.naoDes)} não desembolsáveis + ${brl(b.parc)} parcelas)`),
-    kpi('Equilíbrio econômico', `${num(Math.ceil(b.pee))} ${us}`, `${brl(b.peeR)} · (${ff} + lucro de ${brl(b.lucroDes)})`),
+    kpi('Equilíbrio financeiro', qtd(b.pef, us), `${brl(b.pefR)} · (${ff} − ${brl(b.naoDes)} não desembolsáveis + ${brl(b.parc)} parcelas)`),
+    kpi('Equilíbrio econômico', qtd(b.pee, us), `${brl(b.peeR)} · (${ff} + lucro de ${brl(b.lucroDes)})`),
     kpi('Volume atual', `${num(b.volVend)} ${us}`, `lucro de ${brl(b.lucro)}`, b.lucro >= 0 ? 'bom' : 'ruim'),
     kpi('Margem de segurança', pct(b.ms), `${num(Math.max(0, b.volVend - b.pec))} ${us} acima do equilíbrio`, b.ms >= .2 ? 'bom' : 'ruim')
   ].join('');
@@ -355,7 +372,7 @@ function desenharCVL(b) {
   const el = $('#graficoCVL');
   if (!(b.mcu > 0) || !(b.preco > 0)) { el.innerHTML = aviso('ruim', 'Sem margem de contribuição positiva não há ponto de equilíbrio para desenhar.'); return; }
   const W = 760, H = 320, m = { l: 70, r: 16, t: 16, b: 40 };
-  const xMax = Math.max(b.cap, b.pee * 1.1, b.volVend * 1.1) || 1;
+  const xMax = Math.max(b.cap || 0, b.pee * 1.1, b.volVend * 1.1) || 1;
   const rec = x => b.preco * x, ct = x => b.F + b.cvt * x;
   const yMax = Math.max(rec(xMax), ct(xMax)) * 1.05;
   const X = x => m.l + (x / xMax) * (W - m.l - m.r), Y = y => H - m.b - (y / yMax) * (H - m.t - m.b);
@@ -387,10 +404,11 @@ function desenharCVL(b) {
 
 /* ---------- PEDIDO / PROPOSTA ESPECIAL ---------- */
 function renderPedido(b) {
-  const u = U(), us = plural(u);
+  const u = UV(), us = plural(u);
   const q = g('pq'), p = g('pp'), cv = g('pcv'), dvp = g('pdv') / 100, rat = g('prat'), inc = g('pinc');
   const dvu = p * dvp, mcu = p - cv - dvu;
-  const ociosa = Math.max(0, b.cap - b.volProd);
+  // No modo DRE não há capacidade em unidades; "vendas perdidas" vira receita perdida (R$) × IMC
+  const ociosa = isDRE() || !ok(b.cap) ? Infinity : Math.max(0, b.cap - b.volProd);
   const excesso = Math.max(0, q - ociosa);
   const canib = Math.max(g('pcan'), excesso);
   const perdaCanib = canib * Math.max(0, b.mcu);
@@ -404,7 +422,7 @@ function renderPedido(b) {
     ['Despesas variáveis por ' + esc(u), brl(dvu)],
     [`Resultado por ${u}`, sinal(p - cv - rat - dvu), 'sub'],
     [`Resultado "do relatório" (${num(q)} ${us})`, sinal(resAbs), 'total']
-  ]) + `</tbody></table><p class="muted mini">Rateio de fixos pela base atual: ${brl(b.cfu)} por ${u}.</p>` +
+  ]) + `</tbody></table>${isDRE() ? '' : `<p class="muted mini">Rateio de fixos pela base atual: ${brl(b.cfu)} por ${u}.</p>`}` +
     (resAbs < 0 ? aviso('alerta', `Por esta visão, ${isServ() ? 'a proposta parece' : 'o pedido parece'} dar <strong>prejuízo</strong>. Mas os ${brl(rat * q)} de rateio são fixos que <em>já existem</em> e serão pagos de qualquer forma.`) : '');
 
   $('#pedVar').innerHTML = `<table class="tab num"><tbody>` + linhas([
@@ -416,7 +434,7 @@ function renderPedido(b) {
     [`(−) Margem perdida de ${num(canib)} ${us} normais`, brl(-perdaCanib)],
     ['= Ganho real para a empresa', sinal(resGer), 'total']
   ]) + `</tbody></table>` +
-    `<p class="muted mini">Capacidade ociosa: ${num(ociosa)} ${us}. Preço mínimo para não perder dinheiro: <strong>${brl(piso)}</strong> por ${u}.</p>` +
+    `<p class="muted mini">${ok(ociosa) ? `Capacidade ociosa: ${num(ociosa)} ${us}. ` : ''}Preço mínimo para não perder dinheiro: <strong>${brl(piso)}</strong> por ${u}.</p>` +
     (excesso > 0 ? aviso('alerta', `Faltam ${num(excesso)} ${us} de capacidade: esse volume tiraria espaço de vendas normais, e a margem perdida já foi descontada.`) : '');
 
   $('#pedEmpresa').innerHTML = `<div class="kpis">${[
@@ -528,6 +546,11 @@ function renderAbc() {
 
 /* ---------- FORMAÇÃO DE PREÇO ---------- */
 function renderPreco(b) {
+  if (isDRE()) {
+    const msg = aviso('alerta', 'A formação de preço trabalha com preço e custo <strong>por unidade</strong>. Nos dados base, mude "Forma de informar" para "Por unidade" e informe o volume vendido.');
+    $('#resMk').innerHTML = msg; $('#resMeta').innerHTML = ''; $('#faixa').innerHTML = '';
+    return;
+  }
   const u = U(), m = markup(b);
   const nomeBase = D().mkBase === 'cv' ? (isServ() ? 'Custo direto variável' : 'Custo variável') : 'Custo cheio';
   if (m.div <= 0) { $('#resMk').innerHTML = aviso('ruim', `As porcentagens somam ${pct(m.soma)}: não sobra nada para o custo. Reduza algum percentual.`); }
@@ -593,7 +616,11 @@ function renderGlossario() {
 function aplicarTextos() {
   $$('[data-l]').forEach(el => { el.innerHTML = t(el.dataset.l); });
   $$('[data-h]').forEach(el => { el.textContent = t(el.dataset.h + 'H') || t(el.dataset.h); });
-  $$('.so-prod').forEach(el => { el.style.display = isServ() ? 'none' : ''; });
+  $$('.so-prod, .so-unid, .so-dre').forEach(el => {
+    const esconde = (el.classList.contains('so-prod') && isServ()) || (el.classList.contains('so-unid') && isDRE()) || (el.classList.contains('so-dre') && !isDRE());
+    el.style.display = esconde ? 'none' : '';
+  });
+  $$('[data-forma]').forEach(b => b.classList.toggle('ativo', b.dataset.forma === (D().forma || 'unidade')));
   $$('.modo button').forEach(b => b.classList.toggle('ativo', b.dataset.modo === ST.modo));
 }
 function preencherCampos() {
@@ -606,7 +633,10 @@ function calcular() {
   salvar();
 }
 function tudo() {
-  aplicarTextos(); preencherCampos(); renderMixTabela(); renderAbcTabelas(); calcular();
+  if (!D().linhas) D().linhas = [];
+  aplicarTextos(); preencherCampos(); renderMixTabela(); renderAbcTabelas();
+  if (typeof DRE !== 'undefined') DRE.render();
+  calcular();
 }
 
 document.addEventListener('input', e => {
@@ -639,6 +669,10 @@ document.addEventListener('click', e => {
     salvar();
   } else if (el.dataset.modo) {
     ST.modo = el.dataset.modo; tudo();
+  } else if (el.dataset.forma) {
+    D().forma = el.dataset.forma;
+    if (typeof DRE !== 'undefined') DRE.sincronizar(D());
+    tudo();
   } else if (el.dataset.del) {
     const arr = D()[el.dataset.del], i = +el.dataset.i;
     arr.splice(i, 1);

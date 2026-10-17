@@ -42,23 +42,38 @@
     <div id="iaResultado"></div>
   </section>
 
+  <!-- LINHAS DO DOCUMENTO -->
+  <details class="card" id="cardLinhas" open hidden>
+    <summary><strong>Linhas do documento</strong> <span class="muted">— confira o grupo de cada linha; ao trocar, os totais e os dados base se atualizam</span></summary>
+    <div class="rolagem"><table class="tab edit" id="tabLinhas"></table></div>
+    <div class="acoes-ia"><button class="btn mini" id="addLinha">+ linha</button><button class="btn ghost-dark" id="limparLinhas">Remover linhas</button></div>
+    <div id="resLinhas"></div>
+  </details>
+
   <!-- DADOS BASE -->
   <details class="card base" open>
     <summary><strong>Dados base</strong> <span class="muted" data-l="baseSub"></span></summary>
     <div class="grid g4">
       <label class="f full2"><span data-l="produto"></span><input data-k="produto" data-txt></label>
-      <label class="f"><span>Unidade de venda</span><input data-k="un" data-txt><small data-h="un"></small></label>
-      <label class="f"><span data-l="preco"></span><input data-k="preco"></label>
-      <label class="f"><span data-l="cv"></span><input data-k="cv"><small data-h="cv"></small></label>
-      <label class="f"><span>Despesas variáveis (% do preço)</span><input data-k="dvp"><small data-h="dvp"></small></label>
+      <div class="f full2"><span>Forma de informar</span>
+        <div class="seg" role="radiogroup"><button data-forma="unidade">Por unidade (preço e custo por unidade)</button><button data-forma="dre">Totais do mês (DRE)</button></div>
+      </div>
+      <label class="f so-dre"><span>Receita bruta (R$/mês)</span><input data-k="rec"></label>
+      <label class="f so-dre"><span>Custos variáveis (R$/mês)</span><input data-k="cvT"><small data-h="cv"></small></label>
+      <label class="f so-dre"><span>Despesas variáveis (R$/mês)</span><input data-k="dvT"><small data-h="dvp"></small></label>
+      <label class="f so-dre"><span>Faturamento máximo da estrutura (R$/mês)</span><input data-k="capR"><small>opcional: quanto daria para faturar sem aumentar os fixos</small></label>
+      <label class="f so-unid"><span>Unidade de venda</span><input data-k="un" data-txt><small data-h="un"></small></label>
+      <label class="f so-unid"><span data-l="preco"></span><input data-k="preco"></label>
+      <label class="f so-unid"><span data-l="cv"></span><input data-k="cv"><small data-h="cv"></small></label>
+      <label class="f so-unid"><span>Despesas variáveis (% do preço)</span><input data-k="dvp"><small data-h="dvp"></small></label>
       <label class="f"><span data-l="cfp"></span><input data-k="cfp"><small data-h="cfp"></small></label>
       <label class="f"><span>Despesas fixas (R$/mês)</span><input data-k="df"><small>administrativo, sede, sistemas, contador</small></label>
       <label class="f"><span>Dos fixos, não desembolsáveis (R$/mês)</span><input data-k="naoDes"><small>depreciação, amortização</small></label>
       <label class="f"><span>Parcelas de empréstimo (R$/mês)</span><input data-k="parc"><small>saem do caixa, mas não são custo</small></label>
       <label class="f"><span>Lucro desejado (R$/mês)</span><input data-k="lucroDes"><small>retorno mínimo dos sócios</small></label>
-      <label class="f"><span data-l="volVend"></span><input data-k="volVend"></label>
-      <label class="f so-prod"><span data-l="volProd"></span><input data-k="volProd"><small>diferente do vendido = estoque</small></label>
-      <label class="f"><span data-l="cap"></span><input data-k="cap"><small data-h="cap"></small></label>
+      <label class="f so-unid"><span data-l="volVend"></span><input data-k="volVend"></label>
+      <label class="f so-prod so-unid"><span data-l="volProd"></span><input data-k="volProd"><small>diferente do vendido = estoque</small></label>
+      <label class="f so-unid"><span data-l="cap"></span><input data-k="cap"><small data-h="cap"></small></label>
     </div>
     <p class="muted mini">Aceita "300.000", "300000" ou "12,50". Os dados de Produtos e de Serviços ficam salvos separadamente neste navegador.</p>
   </details>
@@ -267,6 +282,7 @@
 </main>
 
 <script src="app.js"></script>
+<script src="dre.js"></script>
 <script src="ia.js"></script>
 </body>
 </html>

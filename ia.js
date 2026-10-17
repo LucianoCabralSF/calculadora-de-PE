@@ -82,7 +82,8 @@ const IA = (() => {
     pDesc: 'Pedido: descrição', pq: 'Pedido: quantidade', pp: 'Pedido: preço', pcv: 'Pedido: custo variável', pdv: 'Pedido: desp. variáveis %',
     prat: 'Pedido: rateio', pinc: 'Pedido: gastos extras', pcan: 'Pedido: vendas perdidas',
     mkImp: 'Impostos %', mkCom: 'Comissões %', mkDF: 'Desp. fixas %', mkLuc: 'Lucro %', pMerc: 'Preço de mercado', metaMg: 'Margem desejada %',
-    mixRec: 'Recurso escasso', mixH: 'Recurso disponível'
+    mixRec: 'Recurso escasso', mixH: 'Recurso disponível',
+    rec: 'Receita bruta (mês)', cvT: 'Custos variáveis (mês)', dvT: 'Despesas variáveis (mês)'
   };
   const temValor = v => typeof v === 'string' && v.trim() !== '';
 
@@ -90,9 +91,9 @@ const IA = (() => {
     desfazer = clone(ST);
     const modo = r.modo === 'servicos' ? 'servicos' : 'produtos';
     ST.modo = modo;
-    const alvo = ST[modo], mud = [];
+    const alvo = ST[modo], antes = clone(alvo);
     const copia = grupo => Object.entries(grupo || {}).forEach(([k, v]) => {
-      if (temValor(v) && k in NOMES) { mud.push([NOMES[k], alvo[k], v.trim()]); alvo[k] = v.trim(); }
+      if (temValor(v) && k in NOMES) alvo[k] = v.trim();
     });
     copia(r.base); copia(r.pedido); copia(r.preco); copia({ mixRec: r.mixRec, mixH: r.mixH });
     const listas = [];
@@ -108,6 +109,15 @@ const IA = (() => {
     } else {
       alvo.abcA.forEach(a => { a.q = Array.from({ length: n }, (_, j) => a.q[j] || '0'); });
     }
+    // Linhas da DRE: viram a tabela de classificação e definem os totais
+    if (Array.isArray(r.linhas) && r.linhas.length) {
+      alvo.linhas = r.linhas.filter(l => temValor(l.valor)).map(l => ({ d: l.descricao || 'Linha', v: l.valor.trim(), g: DRE.GRUPOS.includes(l.grupo) ? l.grupo : 'ignorar' }));
+      alvo.forma = parse(alvo.volVend) > 0 && temValor(r.base?.volVend) ? 'unidade' : 'dre';
+      DRE.sincronizar(alvo);
+      listas.push(`${alvo.linhas.length} linhas classificadas`);
+    }
+    const mud = Object.keys(NOMES).filter(k => (antes[k] ?? '') !== (alvo[k] ?? '')).map(k => [NOMES[k], antes[k] ?? '', alvo[k]]);
+    if (antes.forma !== alvo.forma) mud.unshift(['Forma de informar', antes.forma === 'dre' ? 'Totais do mês' : 'Por unidade', alvo.forma === 'dre' ? 'Totais do mês (DRE)' : 'Por unidade']);
     tudo();
     return { mud, listas, modo };
   }
