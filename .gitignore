@@ -2,3 +2,5 @@
 .env.*
 .playwright-mcp/
 node_modules/
+
+.vercel

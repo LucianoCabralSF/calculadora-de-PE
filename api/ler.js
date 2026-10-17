@@ -21,14 +21,14 @@ function permitido(ip) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ code: 'metodo' });
 
-  const origem = req.headers.origin;
-  if (origem) {
-    let host = '';
-    try { host = new URL(origem).host; } catch (e) { }
-    if (host !== req.headers.host) return res.status(403).json({ code: 'origem' });
-  }
+  // Só aceita pedidos feitos pela própria página (barra uso direto por outros sites)
+  let host = '';
+  try { host = new URL(req.headers.origin || '').host; } catch (e) { }
+  if (!host || host !== req.headers.host) return res.status(403).json({ code: 'origem' });
+  if (!String(req.headers['content-type'] || '').startsWith('application/json')) return res.status(415).json({ code: 'formato' });
 
-  const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'desconhecido';
+  // Na Vercel, x-real-ip / x-forwarded-for são definidos pela própria plataforma
+  const ip = String(req.headers['x-real-ip'] || req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'desconhecido';
   if (!permitido(ip)) return res.status(429).json({ code: 'rate_limited' });
 
   if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ code: 'sem_chave' });
