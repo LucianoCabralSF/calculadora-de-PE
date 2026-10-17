@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora do Controller</title>
+<meta name="description" content="Custos, custeio, ponto de equilíbrio e formação de preço de produtos e serviços vistos de vários ângulos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topo">
+  <div class="topo-in">
+    <div>
+      <h1>Calculadora do Controller</h1>
+      <p>Custos, custeio, ponto de equilíbrio e preço vistos por vários ângulos, para decidir com números gerenciais e não só com o custo contábil.</p>
+    </div>
+    <div class="acoes">
+      <div class="modo" role="radiogroup" aria-label="Tipo de negócio">
+        <button data-modo="produtos" class="ativo">Produtos</button>
+        <button data-modo="servicos">Serviços</button>
+      </div>
+      <button id="btnExemplo" class="btn ghost" title="Volta para os números do exemplo deste modo">Restaurar exemplo</button>
+      <button id="btnImprimir" class="btn">Imprimir / PDF</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- DADOS BASE -->
+  <details class="card base" open>
+    <summary><strong>Dados base</strong> <span class="muted" data-l="baseSub"></span></summary>
+    <div class="grid g4">
+      <label class="f full2"><span data-l="produto"></span><input data-k="produto" data-txt></label>
+      <label class="f"><span>Unidade de venda</span><input data-k="un" data-txt><small data-h="un"></small></label>
+      <label class="f"><span data-l="preco"></span><input data-k="preco"></label>
+      <label class="f"><span data-l="cv"></span><input data-k="cv"><small data-h="cv"></small></label>
+      <label class="f"><span>Despesas variáveis (% do preço)</span><input data-k="dvp"><small data-h="dvp"></small></label>
+      <label class="f"><span data-l="cfp"></span><input data-k="cfp"><small data-h="cfp"></small></label>
+      <label class="f"><span>Despesas fixas (R$/mês)</span><input data-k="df"><small>administrativo, sede, sistemas, contador</small></label>
+      <label class="f"><span>Dos fixos, não desembolsáveis (R$/mês)</span><input data-k="naoDes"><small>depreciação, amortização</small></label>
+      <label class="f"><span>Lucro desejado (R$/mês)</span><input data-k="lucroDes"><small>retorno mínimo dos sócios</small></label>
+      <label class="f"><span data-l="volVend"></span><input data-k="volVend"></label>
+      <label class="f so-prod"><span data-l="volProd"></span><input data-k="volProd"><small>diferente do vendido = estoque</small></label>
+      <label class="f"><span data-l="cap"></span><input data-k="cap"><small data-h="cap"></small></label>
+    </div>
+    <p class="muted mini">Aceita "300.000", "300000" ou "12,50". Os dados de Produtos e de Serviços ficam salvos separadamente neste navegador.</p>
+  </details>
+
+  <nav class="abas" role="tablist">
+    <button data-aba="painel" class="ativa">Painel 360</button>
+    <button data-aba="absorcao">Absorção x Variável</button>
+    <button data-aba="equilibrio">Equilíbrio e CVL</button>
+    <button data-aba="pedido" data-l="abaPedido"></button>
+    <button data-aba="mix">Mix e gargalo</button>
+    <button data-aba="abc">Custeio ABC</button>
+    <button data-aba="preco">Formação de preço</button>
+    <button data-aba="conceitos">Conceitos</button>
+  </nav>
+
+  <!-- PAINEL 360 -->
+  <section id="painel" class="aba ativa">
+    <div class="card">
+      <h2>Painel 360 — <span data-out="produto"></span></h2>
+      <div class="kpis" id="kpis360"></div>
+    </div>
+    <div class="card">
+      <h3>O mesmo negócio visto de vários ângulos</h3>
+      <div class="rolagem"><table class="tab"><thead><tr><th>Ângulo</th><th>Pergunta do gestor</th><th>Resposta</th></tr></thead><tbody id="angulos"></tbody></table></div>
+    </div>
+    <div class="card">
+      <h3>Leitura do Controller</h3>
+      <ul class="leituras" id="leituras360"></ul>
+    </div>
+  </section>
+
+  <!-- ABSORCAO X VARIAVEL -->
+  <section id="absorcao" class="aba">
+    <div class="card info" data-l="infoAbs"></div>
+    <div class="grid g2">
+      <div class="card">
+        <h3 data-l="tituloUnit"></h3>
+        <table class="tab num" id="tabUnit"></table>
+        <div id="alertaAbs"></div>
+      </div>
+      <div class="card">
+        <h3>Custo cheio muda com o volume</h3>
+        <p class="muted" data-l="volumeTxt"></p>
+        <table class="tab num" id="tabVolume"></table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Resultado do mês pelos dois métodos</h3>
+      <div class="grid g2">
+        <table class="tab num" id="dreAbs"></table>
+        <table class="tab num" id="dreVar"></table>
+      </div>
+      <div id="alertaEstoque"></div>
+    </div>
+  </section>
+
+  <!-- EQUILIBRIO -->
+  <section id="equilibrio" class="aba">
+    <div class="card">
+      <h3>Pontos de equilíbrio</h3>
+      <div class="kpis" id="kpisPE"></div>
+    </div>
+    <div class="card">
+      <h3>Gráfico Custo-Volume-Lucro</h3>
+      <div id="graficoCVL" class="grafico"></div>
+      <div class="legenda">
+        <span><i style="background:var(--c-receita)"></i>Receita</span>
+        <span><i style="background:var(--c-custo)"></i>Custo total</span>
+        <span><i style="background:var(--c-fixo)"></i>Custos fixos</span>
+        <span><i class="tracejado"></i>Pontos de equilíbrio e volume atual</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Simulador de desconto</h3>
+      <div class="grid g4">
+        <label class="f"><span>Desconto no preço (%)</span><input data-k="desc"></label>
+      </div>
+      <div id="resDesc"></div>
+    </div>
+  </section>
+
+  <!-- PEDIDO ESPECIAL -->
+  <section id="pedido" class="aba">
+    <div class="card info" data-l="infoPed"></div>
+    <div class="card">
+      <h3 data-l="tituloPed"></h3>
+      <div class="grid g4">
+        <label class="f full2"><span>Descrição</span><input data-k="pDesc" data-txt></label>
+        <label class="f"><span data-l="pq"></span><input data-k="pq"></label>
+        <label class="f"><span data-l="pp"></span><input data-k="pp"></label>
+        <label class="f"><span data-l="pcv"></span><input data-k="pcv"></label>
+        <label class="f"><span>Despesas variáveis (% do preço)</span><input data-k="pdv"></label>
+        <label class="f"><span data-l="prat"></span><input data-k="prat"><small>o que o custo cheio mostra</small></label>
+        <label class="f"><span>Gastos extras só deste pedido (R$)</span><input data-k="pinc"><small data-h="pinc"></small></label>
+        <label class="f"><span data-l="pcan"></span><input data-k="pcan"><small>canibalização</small></label>
+      </div>
+    </div>
+    <div class="grid g2">
+      <div class="card">
+        <h3>Visão contábil (custo cheio)</h3>
+        <div id="pedAbs"></div>
+      </div>
+      <div class="card destaque">
+        <h3>Visão gerencial (margem de contribuição)</h3>
+        <div id="pedVar"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Lucro do mês da empresa</h3>
+      <div id="pedEmpresa"></div>
+    </div>
+    <div class="card">
+      <h3>Fatores qualitativos (estratégia, mercado e marca)</h3>
+      <p class="muted">Marque o que se aplica. Itens em vermelho aumentam o risco; os verdes reduzem.</p>
+      <div class="grid g2" id="checklist"></div>
+      <div id="pedRec" class="recomendacao"></div>
+    </div>
+  </section>
+
+  <!-- MIX -->
+  <section id="mix" class="aba">
+    <div class="card info" data-l="infoMix"></div>
+    <div class="card">
+      <div class="linha-tit">
+        <h3 data-l="tituloMix"></h3>
+        <button class="btn mini" id="addMix">+ incluir linha</button>
+      </div>
+      <div class="rolagem"><table class="tab edit" id="tabMix"></table></div>
+      <div class="grid g4" style="margin-top:12px">
+        <label class="f"><span>Nome do recurso escasso</span><input data-k="mixRec" data-txt></label>
+        <label class="f"><span>Quantidade disponível no mês</span><input data-k="mixH"></label>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Melhor uso do recurso escasso</h3>
+      <div class="rolagem"><table class="tab num" id="resMix"></table></div>
+      <div id="resMixMsg"></div>
+    </div>
+  </section>
+
+  <!-- ABC -->
+  <section id="abc" class="aba">
+    <div class="card info" data-l="infoAbc"></div>
+    <div class="card">
+      <h3 data-l="tituloAbcP"></h3>
+      <div class="rolagem"><table class="tab edit" id="tabAbcP"></table></div>
+    </div>
+    <div class="card">
+      <div class="linha-tit">
+        <h3>Atividades e direcionadores</h3>
+        <button class="btn mini" id="addAtv">+ atividade</button>
+      </div>
+      <div class="rolagem"><table class="tab edit" id="tabAbcA"></table></div>
+    </div>
+    <div class="card">
+      <h3>Rateio tradicional x ABC</h3>
+      <div class="rolagem"><table class="tab num" id="resAbc"></table></div>
+      <div id="resAbcMsg"></div>
+    </div>
+  </section>
+
+  <!-- PRECO -->
+  <section id="preco" class="aba">
+    <div class="grid g2">
+      <div class="card">
+        <h3>1. Preço pelo custo (markup)</h3>
+        <div class="grid g2">
+          <label class="f"><span>Custo de partida</span>
+            <select data-k="mkBase" data-txt>
+              <option value="cheio">Custo cheio (absorção)</option>
+              <option value="cv">Só custo variável</option>
+            </select></label>
+          <label class="f"><span>Impostos sobre venda (%)</span><input data-k="mkImp"></label>
+          <label class="f"><span>Comissões e fretes (%)</span><input data-k="mkCom"></label>
+          <label class="f"><span>Despesas fixas (% da receita)</span><input data-k="mkDF"><small>se partir só do variável, ponha aqui todos os fixos</small></label>
+          <label class="f"><span>Lucro desejado (% do preço)</span><input data-k="mkLuc"></label>
+        </div>
+        <div id="resMk"></div>
+      </div>
+      <div class="card">
+        <h3>2. Preço pelo mercado e custo-meta</h3>
+        <div class="grid g2">
+          <label class="f"><span data-l="pMerc"></span><input data-k="pMerc"><small>valor percebido / concorrência</small></label>
+          <label class="f"><span>Margem desejada (% do preço)</span><input data-k="metaMg"></label>
+        </div>
+        <div id="resMeta"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>3. Faixa de preço: piso, controle e posicionamento</h3>
+      <div id="faixa"></div>
+      <p class="muted">Boa estratégia combina o <strong>custo variável como piso</strong>, o <strong>markup como controle</strong> e o <strong>valor percebido</strong> para posicionar e capturar margem.</p>
+    </div>
+  </section>
+
+  <!-- CONCEITOS -->
+  <section id="conceitos" class="aba">
+    <div class="grid g3" id="glossario"></div>
+  </section>
+
+  <footer class="rodape muted">Baseado no material "Custos, Sistemas de Custeio, Gestão e Formação de Preço" (pré-work do MBA). Exemplo de Produtos: caso Microcervejaria Lúpulo Dourado. Exemplo de Serviços: consultoria fictícia. Números que o caso não informa são ilustrativos.</footer>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
