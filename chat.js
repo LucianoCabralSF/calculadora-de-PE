@@ -50,13 +50,21 @@ const CHAT = (() => {
     ];
     if (d.linhas?.length) partes.push(`LINHAS DO DOCUMENTO (descrição | valor mensal | grupo):\n` + tabelaLinhas());
     partes.push(`ABSORÇÃO x VARIÁVEL:\n${tabela('#dreAbs')}\n${tabela('#dreVar')}\n${textoDe('#alertaEstoque')}`);
-    partes.push(`PEDIDO/PROPOSTA ESPECIAL "${d.pDesc || ''}": quantidade ${d.pq}, preço ${d.pp}, custo variável ${d.pcv}, desp. variáveis ${d.pdv}%, rateio no relatório ${d.prat}, gastos extras ${d.pinc}, vendas perdidas ${d.pcan}
+    // Abas que ainda estão com os números de exemplo da ferramenta não entram como dados do caso
+    const ex = EXEMPLOS[ST.modo];
+    const alterado = ks => ks.some(k => JSON.stringify(d[k]) !== JSON.stringify(ex[k]));
+    const ignoradas = [];
+    if (alterado(['pDesc', 'pq', 'pp', 'pcv', 'pdv', 'prat', 'pinc', 'pcan'])) partes.push(`PEDIDO/PROPOSTA ESPECIAL "${d.pDesc || ''}": quantidade ${d.pq}, preço ${d.pp}, custo variável ${d.pcv}, desp. variáveis ${d.pdv}%, rateio no relatório ${d.prat}, gastos extras ${d.pinc}, vendas perdidas ${d.pcan}
 ${tabela('#pedVar table')}
 ${textoDe('#pedEmpresa')}
 Recomendação da ferramenta: ${textoDe('#pedRec')}`);
-    partes.push(`MIX E GARGALO (recurso escasso: ${d.mixRec}, disponível ${d.mixH}):\n${tabela('#resMix')}\n${textoDe('#resMixMsg')}`);
-    partes.push(`CUSTEIO ABC:\n${tabela('#resAbc')}\n${textoDe('#resAbcMsg')}`);
-    if (!isDRE()) partes.push(`FORMAÇÃO DE PREÇO:\n${textoDe('#resMk')}\n${textoDe('#resMeta')}`);
+    else ignoradas.push('pedido especial');
+    if (alterado(['mix', 'mixRec', 'mixH'])) partes.push(`MIX E GARGALO (recurso escasso: ${d.mixRec}, disponível ${d.mixH}):\n${tabela('#resMix')}\n${textoDe('#resMixMsg')}`);
+    else ignoradas.push('mix e gargalo');
+    if (alterado(['abcP', 'abcA'])) partes.push(`CUSTEIO ABC:\n${tabela('#resAbc')}\n${textoDe('#resAbcMsg')}`);
+    else ignoradas.push('custeio ABC');
+    if (!isDRE()) partes.push(`FORMAÇÃO DE PREÇO${alterado(['mkImp', 'mkCom', 'mkDF', 'mkLuc', 'pMerc', 'metaMg']) ? '' : ' (percentuais ainda são os de exemplo; use com cautela)'}:\n${textoDe('#resMk')}\n${textoDe('#resMeta')}`);
+    if (ignoradas.length) partes.push(`NÃO PREENCHIDO PELO USUÁRIO (ainda com números de exemplo, por isso não enviado): ${ignoradas.join(', ')}. Se for útil para a pergunta, sugira preencher.`);
     return partes.join('\n\n').slice(0, 38000);
   }
   function tabelaLinhas() {
