@@ -1,0 +1,3 @@
+{
+  "functions": { "api/ler.js": { "maxDuration": 120 } }
+}

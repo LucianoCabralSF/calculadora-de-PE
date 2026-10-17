@@ -31,14 +31,11 @@
 
   <!-- IMPORTAR COM IA -->
   <section class="card ia">
-    <div class="linha-tit"><h3>Importar com IA</h3><span class="muted mini" id="iaModo"></span></div>
+    <div class="linha-tit"><h3>Importar com IA</h3><span class="muted mini">os arquivos são lidos no seu navegador; só o texto vai para a IA</span></div>
     <p class="muted">Envie um PDF, Word ou planilha com os números da empresa (DRE, planilha de custos, orçamento, proposta de cliente). O Claude lê, classifica em custo, despesa, fixo e variável e preenche a calculadora sozinho.</p>
-    <div class="grid g3">
+    <div class="grid g2">
       <label class="f"><span>Arquivo</span><input type="file" id="iaArquivo" accept=".pdf,.docx,.xlsx,.xlsm,.xls,.ods,.csv,.txt,.md"></label>
       <label class="f"><span>Orientação para a IA (opcional)</span><input id="iaExtra" placeholder="ex.: analise só a linha IPA; valores do mês de julho"></label>
-      <div class="f" id="iaChaveBox" hidden><span>Chave da API Anthropic</span>
-        <div class="linha-tit"><input type="password" id="iaChave" autocomplete="off" placeholder="sk-ant-..."><button class="btn x" id="iaEsquecer" title="Apagar chave deste navegador">apagar</button></div>
-      </div>
     </div>
     <div class="acoes-ia"><button class="btn" id="iaIr">Ler e preencher</button><button class="btn ghost-dark" id="iaParar" hidden>Parar</button></div>
     <div id="iaStatus"></div>
@@ -57,6 +54,7 @@
       <label class="f"><span data-l="cfp"></span><input data-k="cfp"><small data-h="cfp"></small></label>
       <label class="f"><span>Despesas fixas (R$/mês)</span><input data-k="df"><small>administrativo, sede, sistemas, contador</small></label>
       <label class="f"><span>Dos fixos, não desembolsáveis (R$/mês)</span><input data-k="naoDes"><small>depreciação, amortização</small></label>
+      <label class="f"><span>Parcelas de empréstimo (R$/mês)</span><input data-k="parc"><small>saem do caixa, mas não são custo</small></label>
       <label class="f"><span>Lucro desejado (R$/mês)</span><input data-k="lucroDes"><small>retorno mínimo dos sócios</small></label>
       <label class="f"><span data-l="volVend"></span><input data-k="volVend"></label>
       <label class="f so-prod"><span data-l="volProd"></span><input data-k="volProd"><small>diferente do vendido = estoque</small></label>
@@ -122,6 +120,10 @@
     <div class="card">
       <h3>Pontos de equilíbrio</h3>
       <div class="kpis" id="kpisPE"></div>
+    </div>
+    <div class="card">
+      <h3>Prova: resultado do mês em cada ponto de equilíbrio</h3>
+      <div class="rolagem"><table class="tab num" id="provaPE"></table></div>
     </div>
     <div class="card">
       <h3>Gráfico Custo-Volume-Lucro</h3>

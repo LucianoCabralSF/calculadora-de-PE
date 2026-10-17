@@ -27,7 +27,7 @@ const plural = u => /[aeiou]$/i.test(u) ? u + 's' : /m$/i.test(u) ? u.slice(0, -
 const EXEMPLOS = {
   produtos: {
     produto: 'Linha clássica (média)', un: 'litro', preco: '12', cv: '5', dvp: '0',
-    cfp: '300.000', df: '0', naoDes: '40.000', lucroDes: '50.000',
+    cfp: '300.000', df: '0', naoDes: '40.000', parc: '0', lucroDes: '50.000',
     volVend: '60.000', volProd: '60.000', cap: '120.000', desc: '10',
     pDesc: 'Chopp Pilsen — festival da rede de supermercados', pq: '10.000', pp: '8', pcv: '5', pdv: '0', prat: '5', pinc: '0', pcan: '0',
     chk: { marca: true, precedente: true, avista: true },
@@ -54,7 +54,7 @@ const EXEMPLOS = {
   },
   servicos: {
     produto: 'Consultoria (hora técnica)', un: 'hora', preco: '180', cv: '60', dvp: '10',
-    cfp: '90.000', df: '30.000', naoDes: '5.000', lucroDes: '25.000',
+    cfp: '90.000', df: '30.000', naoDes: '5.000', parc: '0', lucroDes: '25.000',
     volVend: '1.400', volProd: '1.400', cap: '2.000', desc: '10',
     pDesc: 'Projeto pontual de 200 horas para um cliente novo', pq: '200', pp: '110', pcv: '60', pdv: '10', prat: '64,29', pinc: '1.500', pcan: '0',
     chk: { precedente: true, escopo: true, antecipado: true },
@@ -166,18 +166,21 @@ const t = k => (TXT[ST.modo][k] || '').replace(/\{us\}/g, plural(U())).replace(/
 /* ---------- cálculos base ---------- */
 function base() {
   const preco = g('preco'), cv = g('cv'), dvp = g('dvp') / 100;
-  const cfp = g('cfp'), df = g('df'), naoDes = g('naoDes'), lucroDes = g('lucroDes');
+  const cfp = g('cfp'), df = g('df'), naoDes = g('naoDes'), parc = g('parc'), lucroDes = g('lucroDes');
   const volVend = g('volVend'), volProd = isServ() ? volVend : g('volProd'), cap = g('cap');
   const dvu = preco * dvp, cvt = cv + dvu, mcu = preco - cvt, mcp = preco ? mcu / preco : NaN;
   const F = cfp + df;
-  const pec = mcu > 0 ? F / mcu : NaN, pef = mcu > 0 ? Math.max(0, F - naoDes) / mcu : NaN, pee = mcu > 0 ? (F + lucroDes) / mcu : NaN;
+  const pec = mcu > 0 ? F / mcu : NaN, pef = mcu > 0 ? Math.max(0, F - naoDes + parc) / mcu : NaN, pee = mcu > 0 ? (F + lucroDes) / mcu : NaN;
   const lucro = mcu * volVend - F;
+  // IMC = margem de contribuição total ÷ receita bruta total; PE em R$ = (CF + DF) ÷ IMC
+  const imc = volVend > 0 && preco > 0 ? (mcu * volVend) / (preco * volVend) : mcp;
+  const pecR = imc > 0 ? F / imc : NaN, pefR = imc > 0 ? Math.max(0, F - naoDes + parc) / imc : NaN, peeR = imc > 0 ? (F + lucroDes) / imc : NaN;
   const ms = volVend ? (volVend - pec) / volVend : NaN;
   const gao = lucro > 0 ? (mcu * volVend) / lucro : NaN;
   const cfu = volProd ? cfp / volProd : NaN, cheio = cv + cfu;
   const ocup = cap ? volProd / cap : NaN;
   const piso = dvp < 1 ? cv / (1 - dvp) : NaN;
-  return { preco, cv, dvp, dvu, cvt, mcu, mcp, cfp, df, F, naoDes, lucroDes, volVend, volProd, cap, pec, pef, pee, lucro, ms, gao, cfu, cheio, ocup, piso };
+  return { preco, cv, dvp, dvu, cvt, mcu, mcp, cfp, df, F, naoDes, parc, lucroDes, imc, pecR, pefR, peeR, volVend, volProd, cap, pec, pef, pee, lucro, ms, gao, cfu, cheio, ocup, piso };
 }
 
 function markup(b) {
@@ -200,7 +203,7 @@ function renderPainel(b) {
     kpi(`Custo variável total por ${u}`, brl(b.cvt), 'custo + despesas variáveis'),
     kpi(`Custo cheio por ${u} (absorção)`, brl(b.cheio), `inclui ${brl(b.cfu)} de fixo rateado`),
     kpi('Lucro do mês', brl(b.lucro), 'visão gerencial', b.lucro >= 0 ? 'bom' : 'ruim'),
-    kpi('Equilíbrio contábil', `${num(Math.ceil(b.pec))} ${us}`, brl(b.pec * b.preco) + ' de receita'),
+    kpi('Equilíbrio contábil', `${num(Math.ceil(b.pec))} ${us}`, brl(b.pecR) + ' de faturamento mínimo'),
     kpi('Equilíbrio financeiro', `${num(Math.ceil(b.pef))} ${us}`, 'cobre só o que sai do caixa'),
     kpi('Equilíbrio econômico', `${num(Math.ceil(b.pee))} ${us}`, `inclui lucro de ${brl(b.lucroDes)}`),
     kpi('Margem de segurança', pct(b.ms), 'quanto as vendas podem cair', b.ms >= .2 ? 'bom' : 'ruim'),
@@ -302,14 +305,34 @@ function renderAbsorcao(b) {
 /* ---------- EQUILÍBRIO e CVL ---------- */
 function renderEquilibrio(b) {
   const u = U(), us = plural(u);
+  const ff = 'CF + DF';
   $('#kpisPE').innerHTML = [
-    kpi(`Margem de contribuição por ${u}`, brl(b.mcu), pct(b.mcp) + ' do preço', b.mcu > 0 ? 'bom' : 'ruim'),
-    kpi('Equilíbrio contábil', `${num(Math.ceil(b.pec))} ${us}`, `${brl(b.F)} de fixos ÷ ${brl(b.mcu)}`),
-    kpi('Equilíbrio financeiro', `${num(Math.ceil(b.pef))} ${us}`, `sem ${brl(b.naoDes)} não desembolsáveis`),
-    kpi('Equilíbrio econômico', `${num(Math.ceil(b.pee))} ${us}`, `fixos + lucro de ${brl(b.lucroDes)}`),
+    kpi(`Margem de contribuição por ${u}`, brl(b.mcu), `preço − custos e despesas variáveis`, b.mcu > 0 ? 'bom' : 'ruim'),
+    kpi('IMC — índice de margem de contribuição', pct(b.imc), `MC total ${brl(b.mcu * b.volVend)} ÷ receita bruta ${brl(b.preco * b.volVend)}`, b.imc > 0 ? 'bom' : 'ruim'),
+    kpi(`PEC em ${us} (volume de esforço)`, `${num(Math.ceil(b.pec))} ${us}`, `(${ff}) ${brl(b.F)} ÷ MC por ${u} ${brl(b.mcu)}`),
+    kpi('PEC em R$ (faturamento mínimo)', brl(b.pecR), `(${ff}) ${brl(b.F)} ÷ IMC ${pct(b.imc)}`),
+    kpi('Equilíbrio financeiro', `${num(Math.ceil(b.pef))} ${us}`, `${brl(b.pefR)} · (${ff} − ${brl(b.naoDes)} não desembolsáveis + ${brl(b.parc)} parcelas)`),
+    kpi('Equilíbrio econômico', `${num(Math.ceil(b.pee))} ${us}`, `${brl(b.peeR)} · (${ff} + lucro de ${brl(b.lucroDes)})`),
     kpi('Volume atual', `${num(b.volVend)} ${us}`, `lucro de ${brl(b.lucro)}`, b.lucro >= 0 ? 'bom' : 'ruim'),
     kpi('Margem de segurança', pct(b.ms), `${num(Math.max(0, b.volVend - b.pec))} ${us} acima do equilíbrio`, b.ms >= .2 ? 'bom' : 'ruim')
   ].join('');
+
+  // Prova: monta o resultado do mês em cada ponto e mostra que fecha
+  const pontos = [['Contábil', b.pec], ['Financeiro', b.pef], ['Econômico', b.pee], ['Atual', b.volVend]];
+  const linha = (rot, f, cls = '') => `<tr class="${cls}"><td>${rot}</td>${pontos.map(([, v]) => `<td>${ok(v) ? f(v) : '—'}</td>`).join('')}</tr>`;
+  const luc = v => b.mcu * v - b.F, caixa = v => luc(v) + b.naoDes - b.parc;
+  $('#provaPE').innerHTML = `<thead><tr><th></th>${pontos.map(p => `<th>${p[0]}</th>`).join('')}</tr></thead><tbody>` +
+    linha(`Volume (${us})`, v => num(v, 1)) +
+    linha('Receita bruta', v => brl(b.preco * v)) +
+    linha('(−) Custos e despesas variáveis', v => brl(-b.cvt * v)) +
+    linha('= Margem de contribuição', v => brl(b.mcu * v), 'sub') +
+    linha('(−) Custos fixos (CF)', () => brl(-b.cfp)) +
+    linha('(−) Despesas fixas (DF)', () => brl(-b.df)) +
+    linha('= Lucro', v => sinal(luc(v)), 'total') +
+    linha('(+) Não desembolsáveis', () => brl(b.naoDes)) +
+    linha('(−) Parcelas de empréstimo', () => brl(-b.parc)) +
+    linha('= Sobra de caixa', v => sinal(caixa(v)), 'total') +
+    '</tbody><tfoot><tr><td colspan="5" class="muted mini">No contábil o lucro é zero; no financeiro a sobra de caixa é zero; no econômico o lucro é igual ao lucro desejado.</td></tr></tfoot>';
   desenharCVL(b);
 
   const d = g('desc') / 100, p2 = b.preco * (1 - d), mc2 = p2 - b.cv - p2 * b.dvp;
@@ -555,7 +578,7 @@ const GLOSSARIO = [
   ['Custeio por absorção', 'Todos os custos de produção (inclusive fixos) vão para o produto. Obrigatório para a contabilidade oficial; perigoso para decisões de curto prazo.', '', ''],
   ['Custeio variável', 'Só custos e despesas variáveis vão para o produto; fixos são custo do período. Ferramenta gerencial que revela a margem de contribuição.', '', ''],
   ['Margem de contribuição', 'Preço − custos e despesas variáveis. Quanto cada unidade deixa para pagar os fixos e, depois, gerar lucro.', '', ''],
-  ['Pontos de equilíbrio', 'Contábil = fixos ÷ MC. Financeiro = (fixos − não desembolsáveis) ÷ MC. Econômico = (fixos + lucro desejado) ÷ MC.', '', ''],
+  ['Pontos de equilíbrio', 'Contábil = (CF + DF) ÷ MC por unidade (ou por hora/projeto, em serviços). Em reais: (CF + DF) ÷ IMC, onde IMC = margem de contribuição total ÷ receita bruta total. Financeiro = (CF + DF − não desembolsáveis + parcelas de empréstimo) ÷ MC. Econômico = (CF + DF + lucro desejado) ÷ MC.', 'PEC em unidades e em faturamento mínimo.', 'PEC em horas ou projetos (volume de esforço) e em R$ (faturamento mínimo).'],
   ['Custeio ABC', 'Recursos → atividades → produtos. Distribui os indiretos pelo que de fato os provoca (direcionadores).', '', ''],
   ['Lean Accounting', 'Contabilidade simples e visual por cadeia de valor, focada em eliminar desperdício e transformar capacidade liberada em receita ou redução de custo.', '', ''],
   ['Markup', 'Fator aplicado ao custo para chegar ao preço que cobre impostos, despesas e lucro. Bom como controle e piso de segurança, mas o mercado pode não aceitar.', '', ''],
