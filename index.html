@@ -29,6 +29,22 @@
 
 <main class="wrap">
 
+  <!-- IMPORTAR COM IA -->
+  <section class="card ia">
+    <div class="linha-tit"><h3>Importar com IA</h3><span class="muted mini" id="iaModo"></span></div>
+    <p class="muted">Envie um PDF, Word ou planilha com os números da empresa (DRE, planilha de custos, orçamento, proposta de cliente). O Claude lê, classifica em custo, despesa, fixo e variável e preenche a calculadora sozinho.</p>
+    <div class="grid g3">
+      <label class="f"><span>Arquivo</span><input type="file" id="iaArquivo" accept=".pdf,.docx,.xlsx,.xlsm,.xls,.ods,.csv,.txt,.md"></label>
+      <label class="f"><span>Orientação para a IA (opcional)</span><input id="iaExtra" placeholder="ex.: analise só a linha IPA; valores do mês de julho"></label>
+      <div class="f" id="iaChaveBox" hidden><span>Chave da API Anthropic</span>
+        <div class="linha-tit"><input type="password" id="iaChave" autocomplete="off" placeholder="sk-ant-..."><button class="btn x" id="iaEsquecer" title="Apagar chave deste navegador">apagar</button></div>
+      </div>
+    </div>
+    <div class="acoes-ia"><button class="btn" id="iaIr">Ler e preencher</button><button class="btn ghost-dark" id="iaParar" hidden>Parar</button></div>
+    <div id="iaStatus"></div>
+    <div id="iaResultado"></div>
+  </section>
+
   <!-- DADOS BASE -->
   <details class="card base" open>
     <summary><strong>Dados base</strong> <span class="muted" data-l="baseSub"></span></summary>
@@ -249,5 +265,6 @@
 </main>
 
 <script src="app.js"></script>
+<script src="ia.js"></script>
 </body>
 </html>
