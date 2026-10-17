@@ -3,7 +3,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { SCHEMA, montarPrompt } from '../lib/prompt.mjs';
 
-const client = new Anthropic();
+// Chave sem workspace exige o cabeçalho anthropic-workspace-id (variável ANTHROPIC_WORKSPACE_ID)
+const client = new Anthropic(process.env.ANTHROPIC_WORKSPACE_ID
+  ? { defaultHeaders: { 'anthropic-workspace-id': process.env.ANTHROPIC_WORKSPACE_ID } }
+  : {});
 const LIMITE_TEXTO = 150000;
 const LIMITE_EXTRA = 500;
 
@@ -54,8 +57,9 @@ export default async function handler(req, res) {
     const txt = resp.content.filter(b => b.type === 'text').map(b => b.text).join('');
     return res.status(200).json(JSON.parse(txt));
   } catch (e) {
+    console.error('Falha ao chamar o Claude:', e?.status, e?.name, String(e?.message || '').slice(0, 500));
     if (e instanceof Anthropic.RateLimitError) return res.status(429).json({ code: 'rate_limited' });
-    if (e instanceof Anthropic.AuthenticationError) return res.status(503).json({ code: 'sem_chave' });
+    if (e instanceof Anthropic.AuthenticationError || /workspace/i.test(e?.message || '')) return res.status(503).json({ code: 'sem_chave' });
     if (e instanceof Anthropic.APIError) {
       const semCredito = /credit/i.test(e.message || '');
       return res.status(502).json({ code: semCredito ? 'sem_credito' : 'upstream_error' });
