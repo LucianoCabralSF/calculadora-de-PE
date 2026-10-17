@@ -6,8 +6,8 @@ const IA = (() => {
     pdf: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
     pdfWorker: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
     mammoth: 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js',
-    xlsx: 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-    sdk: 'https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk/+esm'
+    xlsx: 'vendor/xlsx.full.min.js', // SheetJS 0.20.3 (a 0.18.5 do npm/cdnjs tem falhas conhecidas)
+    sdk: 'https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.135.0/+esm' // versão fixa: a chave da API passa por este código
   };
   const LIMITE = 150000; // caracteres de texto enviados ao Claude
   const CHAVE_API = 'calcController.apiKey';
@@ -28,7 +28,7 @@ const IA = (() => {
     if (nome.endsWith('.pdf')) {
       await carregar(CDN.pdf);
       pdfjsLib.GlobalWorkerOptions.workerSrc = CDN.pdfWorker;
-      const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+      const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false }).promise;
       const partes = [];
       for (let i = 1; i <= pdf.numPages; i++) {
         const pg = await pdf.getPage(i);
