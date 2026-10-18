@@ -114,10 +114,24 @@ Recomendação da ferramenta: ${textoDe('#pedRec')}`);
     return html;
   }
 
+  const liberado = () => !!(D().alimentado || D().exemploLiberado);
+
   function desenhar() {
     const box = el('chatMsgs');
+    // Antes dos dados: o chat explica o caminho em vez de conversar
+    const pode = liberado();
+    el('chatTexto').disabled = !pode; el('chatEnviar').disabled = !pode;
+    el('chatTexto').placeholder = pode ? 'Pergunte sobre seus números... (Enter envia)' : 'Alimente os dados para conversar';
+    if (!pode) {
+      box.innerHTML = `<div class="chat-boas"><p>Olá! Sou o <strong>controller consultivo</strong>. Eu analiso os números que estão na calculadora.</p>
+        <p>Para começar, <strong>alimente os seus dados</strong>: envie uma DRE, planilha, PDF ou foto, escreva o caso no "Importar com IA" ou digite nos campos. Assim que houver dados, eu já entro na conversa.</p>
+        <p>Se preferir, podemos conversar agora sobre o <strong>exemplo que já vem na calculadora</strong> (${isServ() ? 'consultoria fictícia' : 'caso Microcervejaria Lúpulo Dourado'}).</p>
+        <div class="chat-inicio"><button class="btn" id="chatIrImportar">Alimentar meus dados</button><button class="btn ghost-dark" id="chatUsarExemplo">Conversar sobre o exemplo</button></div></div>`;
+      el('chatSug').innerHTML = '';
+      return;
+    }
     box.innerHTML = (apagada && !conversa.length ? `<div class="chat-desfazer">Conversa anterior apagada. <button class="chip" id="chatDesfazer">Desfazer</button></div>` : '') +
-      (conversa.length ? '' : `<div class="chat-boas">Olá! Sou seu <strong>controller consultivo</strong>. Já estou vendo os números que você alimentou. Pergunte o que quiser ou comece por uma sugestão:</div>`) +
+      (conversa.length ? '' : `<div class="chat-boas">Olá! Sou seu <strong>controller consultivo</strong>. ${D().alimentado ? 'Já estou vendo os números que você alimentou.' : 'Vamos conversar sobre o exemplo que está na calculadora.'} Pergunte o que quiser ou comece por uma sugestão:</div>`) +
       conversa.map(m => `<div class="chat-msg ${m.role === 'user' ? 'eu' : 'ia'}">${m.role === 'user' ? esc(m.content).replace(/\n/g, '<br>') : (m.content ? formatar(m.content) : '<span class="muted">Analisando os números...</span>')}</div>`).join('');
     // Botões de pergunta: iniciais, ou as continuações sugeridas na última resposta
     const ultima = conversa[conversa.length - 1];
@@ -202,7 +216,7 @@ Recomendação da ferramenta: ${textoDe('#pedRec')}`);
   /* ---------- enviar ---------- */
   async function enviar(texto) {
     texto = (texto || '').trim();
-    if (!texto || ctl) return;
+    if (!texto || ctl || !liberado()) return;
     el('chatTexto').value = '';
     conversa.push({ role: 'user', content: texto });
     const resp = { role: 'assistant', content: '' };
@@ -261,12 +275,12 @@ Recomendação da ferramenta: ${textoDe('#pedRec')}`);
     avisoTimer = setTimeout(() => { aviso.hidden = true; }, 4500);
   }
   // Mostra o botão só depois que os dados foram alimentados neste modo
+  // O botão do chat fica sempre visível; antes dos dados, o chat orienta como alimentar
   function atualizar() {
-    const pronto = !!D().alimentado;
-    el('chatBtn').hidden = !pronto;
-    el('chatTopo').hidden = !pronto;
-    el('chatDica').hidden = pronto;
-    if (!pronto && aberto) abrir(false);
+    el('chatBtn').hidden = false;
+    el('chatTopo').hidden = false;
+    el('chatDica').hidden = !!D().alimentado;
+    if (aberto) desenhar();
   }
 
   function iniciar() {
@@ -290,6 +304,15 @@ Recomendação da ferramenta: ${textoDe('#pedRec')}`);
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(el('chatTexto').value); }
     });
     el('chatSug').addEventListener('click', e => { const s = e.target.closest('[data-sug]'); if (s) enviar(s.dataset.sug); });
+    el('chatMsgs').addEventListener('click', e => {
+      if (e.target.id === 'chatIrImportar') {
+        abrir(false);
+        document.querySelector('.card.ia').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(() => el('iaCaso').focus({ preventScroll: true }), 600);
+      } else if (e.target.id === 'chatUsarExemplo') {
+        D().exemploLiberado = true; salvar(); desenhar(); el('chatTexto').focus();
+      }
+    });
     atualizar();
     desenharInsights();
   }
