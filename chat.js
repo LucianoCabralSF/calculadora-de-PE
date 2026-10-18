@@ -123,7 +123,10 @@ Recomendação da ferramenta: ${textoDe('#pedRec')}`);
       conversa.map(m => `<div class="chat-msg ${m.role === 'user' ? 'eu' : 'ia'}">${m.role === 'user' ? esc(m.content).replace(/\n/g, '<br>') : (m.content ? formatar(m.content) : '<span class="muted">Analisando os números...</span>')}</div>`).join('');
     // Botões de pergunta: iniciais, ou as continuações sugeridas na última resposta
     const ultima = conversa[conversa.length - 1];
-    const sug = !conversa.length ? sugestoesIniciais() : (!ctl && ultima?.role === 'assistant' ? ultima.sug || [] : []);
+    const feitas = new Set(conversa.filter(m => m.role === 'user').map(m => m.content));
+    const reserva = () => sugestoesIniciais().filter(q => !feitas.has(q)).slice(0, 3);
+    const sug = !conversa.length ? sugestoesIniciais()
+      : (!ctl && ultima?.role === 'assistant' ? (ultima.sug?.length ? ultima.sug : reserva()) : []);
     el('chatSug').innerHTML = sug.map(s => `<button class="chip" data-sug="${esc(s)}">${esc(s)}</button>`).join('');
     box.scrollTop = box.scrollHeight;
   }

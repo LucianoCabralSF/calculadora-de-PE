@@ -60,8 +60,8 @@ export default async function handler(req, res) {
     // Chat no Claude Haiku 5.5: rápido e barato. A leitura de documentos (api/ler.js) segue no Opus 5.5.
     stream = client.messages.stream({
       model: 'claude-haiku-5-5',
-      max_tokens: 4000,
-      output_config: { effort: 'medium' },
+      max_tokens: 16000, // inclui o raciocínio interno do modelo; a resposta em si é curta
+      output_config: { effort: 'low' },
       system: sistema,
       messages: mensagensIA
     });
