@@ -304,6 +304,10 @@ const SLIDES = (() => {
   function iniciar() {
     el('slPptx').addEventListener('click', exportarPptx);
     el('slApresentar').addEventListener('click', apresentar);
+    // Atalhos no topo da página: levam ao Painel (onde aparecem as mensagens de andamento) e disparam a mesma ação
+    const noPainel = () => { document.querySelector('[data-aba="painel"]').click(); el('cardInsights').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+    el('hdApresentar').addEventListener('click', () => { noPainel(); apresentar(); });
+    el('hdPptx').addEventListener('click', () => { noPainel(); exportarPptx(); });
     el('apAnt').addEventListener('click', () => ir(-1));
     el('apProx').addEventListener('click', () => ir(1));
     el('apFechar').addEventListener('click', fechar);
