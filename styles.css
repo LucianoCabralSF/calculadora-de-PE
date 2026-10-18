@@ -85,11 +85,13 @@ details summary{cursor:pointer}
 .seg button.ativo{background:#fff;color:var(--pri);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .tab.edit select{padding:6px 8px}
 .chat-btn{position:fixed;right:20px;bottom:20px;z-index:50;border:0;border-radius:999px;background:var(--pri);color:#fff;font:inherit;font-weight:600;padding:12px 18px;box-shadow:0 6px 20px rgba(0,0,0,.25);cursor:pointer}
-.chat-btn.aberto{background:var(--acento);color:#1d2330}
-.chat-painel{position:fixed;right:20px;bottom:76px;z-index:50;width:min(420px,calc(100vw - 32px));height:min(620px,calc(100vh - 110px));background:#fff;border:1px solid var(--borda);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden}
+.chat-btn.aberto{display:none}
+/* Chat em barra lateral: altura toda da tela à direita (no celular, tela cheia) */
+.chat-painel{position:fixed;top:0;right:0;bottom:0;z-index:60;width:min(440px,100vw);background:#fff;border-left:1px solid var(--borda);box-shadow:-8px 0 30px rgba(0,0,0,.18);display:flex;flex-direction:column;overflow:hidden}
 .chat-painel[hidden]{display:none}
 .chat-topo{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;background:var(--pri);color:#fff}
 .chat-topo .mini{opacity:.8}
+.chat-topo>div:last-child{display:flex;flex-shrink:0}
 .chat-acao{border:1px solid rgba(255,255,255,.4);background:transparent;color:#fff;font:inherit;font-size:.8rem;padding:4px 9px;border-radius:7px;cursor:pointer;margin-left:6px}
 .chat-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:#f7f8fa}
 .chat-msg{max-width:88%;padding:9px 12px;border-radius:12px;font-size:.9rem;line-height:1.45}
@@ -98,14 +100,16 @@ details summary{cursor:pointer}
 .chat-msg.eu{align-self:flex-end;background:var(--pri);color:#fff;border-bottom-right-radius:4px}
 .chat-msg.ia{align-self:flex-start;background:#fff;border:1px solid var(--borda);border-bottom-left-radius:4px}
 .chat-boas{font-size:.9rem;color:var(--muted)}
-.chat-sug{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px}
-.chat-sug:not(:empty){padding:8px 14px 0}
+.chat-sug{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px;max-height:150px;overflow-y:auto;flex-shrink:0}
+.chat-sug:not(:empty){padding:8px 14px 2px;border-top:1px solid var(--borda);background:#fafbfc}
 .chip{border:1px solid var(--borda);background:#fff;border-radius:999px;padding:5px 10px;font:inherit;font-size:.78rem;cursor:pointer;color:var(--pri)}
 .chip:hover{border-color:var(--pri)}
 .chat-entrada{display:flex;gap:6px;padding:10px 14px;border-top:1px solid var(--borda);align-items:flex-end}
 .chat-entrada textarea{flex:1;font:inherit;padding:8px 10px;border:1px solid var(--borda);border-radius:8px;resize:none}
 .chat-rodape{margin:0;padding:0 14px 8px;font-size:.72rem;color:var(--muted)}
-@media (max-width:620px){.chat-btn span{display:none}.chat-painel{right:16px;bottom:72px}}
+@media (max-width:620px){.chat-btn span{display:none}}
+/* Em telas largas a página abre espaço para a barra lateral, para dar para usar a calculadora junto com o chat */
+@media (min-width:1100px){body.chat-aberto{padding-right:440px}body.chat-aberto .aviso-topo{left:calc(50% - 220px)}}
 .dica{position:fixed;z-index:60;max-width:320px;background:#1d2330;color:#fff;font-size:.82rem;line-height:1.4;padding:9px 11px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.25);pointer-events:none}
 .dica[hidden]{display:none}
 .chat-aviso{position:fixed;right:20px;bottom:76px;z-index:51;background:#1d2330;color:#fff;font-size:.85rem;padding:8px 12px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer}

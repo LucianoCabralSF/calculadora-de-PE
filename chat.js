@@ -249,6 +249,7 @@ Recomendação da ferramenta: ${textoDe('#pedRec')}`);
     aberto = sim;
     el('chatPainel').hidden = !sim;
     el('chatBtn').classList.toggle('aberto', sim);
+    document.body.classList.toggle('chat-aberto', sim);
     if (sim) { desenhar(); el('chatTexto').focus(); }
   }
   // Ao fechar, o botão pisca e mostra onde o chat continua disponível
