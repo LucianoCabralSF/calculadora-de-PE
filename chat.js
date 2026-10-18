@@ -3,13 +3,31 @@
 'use strict';
 
 const CHAT = (() => {
-  const SUGESTOES = [
-    'Qual é o diagnóstico geral desses números?',
-    'Onde estão os maiores riscos?',
-    'Como posso melhorar a margem?',
-    'Explique o ponto de equilíbrio com meus números',
-    'Devo aceitar o pedido especial?'
-  ];
+  // Perguntas iniciais escolhidas conforme a situação dos números
+  function sugestoesIniciais() {
+    const b = base(), d = D(), ex = EXEMPLOS[ST.modo], s = [];
+    const alterado = ks => ks.some(k => JSON.stringify(d[k]) !== JSON.stringify(ex[k]));
+    if (d.caso || d.resumoIA) s.push('Avalie este caso e diga o que você recomenda');
+    s.push('Qual é o diagnóstico geral desses números?');
+    if (b.mcu <= 0) s.push('Por que o preço não cobre nem o custo variável?');
+    else if (b.lucro < 0) s.push('O que fazer para sair do prejuízo?');
+    else if (b.ms < 0.2) s.push('Minha margem de segurança é baixa. O que fazer?');
+    if (b.preco - b.cheio - b.dvu < 0 && b.mcu > 0) s.push('O custo cheio diz prejuízo. Devo parar de vender?');
+    if (alterado(['pDesc', 'pq', 'pp', 'pcv', 'prat'])) s.push(`Devo aceitar ${isServ() ? 'a proposta' : 'o pedido'} especial?`);
+    if (ok(b.ocup) && b.ocup < 0.75) s.push('Como aproveitar a capacidade ociosa?');
+    s.push(isDRE() ? 'Qual faturamento mínimo preciso e por quê?' : 'Explique o ponto de equilíbrio com meus números');
+    if (alterado(['mix', 'mixRec', 'mixH'])) s.push('Qual produto devo priorizar no gargalo?');
+    if (alterado(['abcP', 'abcA'])) s.push('O que o custeio ABC revela que o rateio esconde?');
+    s.push('Como posso melhorar a margem?', 'Onde estão os maiores riscos?');
+    return [...new Set(s)].slice(0, 5);
+  }
+  // A IA termina cada resposta com "<<sugestoes>>" e 3 perguntas; aqui separamos texto e botões
+  function separar(bruto) {
+    const i = bruto.indexOf('<<sugest');
+    if (i < 0) return { texto: bruto.replace(/<{1,2}[a-z]*$/i, ''), sug: [] };
+    const sug = bruto.slice(i).split('\n').map(l => l.match(/^\s*[-*•]\s+(.+?)\s*$/)?.[1]).filter(Boolean).slice(0, 3);
+    return { texto: bruto.slice(0, i).trimEnd(), sug };
+  }
   const MSG = {
     sem_servidor: 'O chat só funciona na versão publicada (calculadora-de-pe.vercel.app).',
     sem_chave: 'A IA está desligada no momento (chave não configurada ou expirada). Avise o professor.',
@@ -103,9 +121,81 @@ Recomendação da ferramenta: ${textoDe('#pedRec')}`);
     box.innerHTML = (apagada && !conversa.length ? `<div class="chat-desfazer">Conversa anterior apagada. <button class="chip" id="chatDesfazer">Desfazer</button></div>` : '') +
       (conversa.length ? '' : `<div class="chat-boas">Olá! Sou seu <strong>controller consultivo</strong>. Já estou vendo os números que você alimentou. Pergunte o que quiser ou comece por uma sugestão:</div>`) +
       conversa.map(m => `<div class="chat-msg ${m.role === 'user' ? 'eu' : 'ia'}">${m.role === 'user' ? esc(m.content).replace(/\n/g, '<br>') : (m.content ? formatar(m.content) : '<span class="muted">Analisando os números...</span>')}</div>`).join('');
-    const sug = D().caso || D().resumoIA ? ['Avalie este caso e diga o que você recomenda', ...SUGESTOES.slice(1)] : SUGESTOES;
-    el('chatSug').innerHTML = conversa.length ? '' : sug.map(s => `<button class="chip" data-sug="${esc(s)}">${esc(s)}</button>`).join('');
+    // Botões de pergunta: iniciais, ou as continuações sugeridas na última resposta
+    const ultima = conversa[conversa.length - 1];
+    const sug = !conversa.length ? sugestoesIniciais() : (!ctl && ultima?.role === 'assistant' ? ultima.sug || [] : []);
+    el('chatSug').innerHTML = sug.map(s => `<button class="chip" data-sug="${esc(s)}">${esc(s)}</button>`).join('');
     box.scrollTop = box.scrollHeight;
+  }
+
+  /* ---------- conversa com o servidor ---------- */
+  const historico = msgs => msgs.filter(m => m.content).slice(-20).map(m => ({ role: m.role, content: m.content }));
+  async function lerResposta(r, aoReceber) {
+    if (!r.ok) {
+      let code = r.status === 404 || r.status === 501 ? 'sem_servidor' : 'upstream_error';
+      try { code = (await r.json()).code || code; } catch (e) { }
+      throw { code };
+    }
+    const leitor = r.body.getReader(), dec = new TextDecoder();
+    for (;;) {
+      const { value, done } = await leitor.read();
+      if (done) break;
+      aoReceber(dec.decode(value, { stream: true }));
+    }
+  }
+
+  /* ---------- insights da conversa (painel e PDF) ---------- */
+  const CHAVE_INS = 'calcController.insights';
+  let insights = null, ctlIns = null;
+  try { insights = JSON.parse(localStorage.getItem(CHAVE_INS)); } catch (e) { insights = null; }
+
+  function desenharInsights() {
+    const tem = conversa.some(m => m.role === 'assistant' && m.content);
+    el('insGerar').disabled = !tem || !!ctlIns;
+    el('insGerar').textContent = insights?.texto ? 'Atualizar insights' : 'Gerar insights da conversa';
+    el('insData').textContent = insights?.data ? 'gerado em ' + insights.data : '';
+    if (ctlIns) return;
+    el('insightsTexto').innerHTML = insights?.texto ? formatar(insights.texto)
+      : `<p class="muted">${tem ? 'Clique em "Gerar insights da conversa" para resumir o que foi conversado com o Controller consultivo.' : 'Converse com o 💬 Controller consultivo (canto da tela) e depois gere aqui o resumo dos insights para exportar com o PDF.'}</p>`;
+  }
+
+  async function gerarInsights() {
+    if (ctlIns) return;
+    ctlIns = new AbortController();
+    el('insGerar').disabled = true;
+    el('insightsTexto').innerHTML = '<p class="muted">Resumindo a conversa...</p>';
+    let texto = '';
+    try {
+      const r = await fetch('api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo: 'insights', contexto: contexto(), mensagens: historico(conversa) }),
+        signal: ctlIns.signal
+      });
+      await lerResposta(r, parte => { texto += parte; el('insightsTexto').innerHTML = formatar(texto); });
+      if (!texto.trim()) throw { code: 'upstream_error' };
+      insights = { texto, data: new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) };
+      try { localStorage.setItem(CHAVE_INS, JSON.stringify(insights)); } catch (e) { }
+    } catch (e) {
+      el('insightsTexto').innerHTML = `<p class="neg">${esc(MSG[e?.code] || 'Não consegui gerar os insights agora. Tente de novo em instantes.')}</p>`;
+      ctlIns = null; desenharInsights();
+      return;
+    }
+    ctlIns = null;
+    desenharInsights();
+  }
+
+  // PDF: abre o Painel 360 com os insights (e, se marcado, a conversa completa) e chama a impressão
+  function exportarPDF() {
+    const comConversa = el('insConversa').checked;
+    el('insConversaImp').innerHTML = comConversa && conversa.length
+      ? `<h3>Conversa com o Controller consultivo</h3>` + conversa.filter(m => m.content).map(m =>
+        `<div class="imp-msg"><strong>${m.role === 'user' ? 'Pergunta' : 'Controller'}:</strong> ${m.role === 'user' ? esc(m.content) : formatar(m.content)}</div>`).join('')
+      : '';
+    el('insConversaImp').classList.toggle('imprimir', comConversa);
+    el('impData').textContent = 'Relatório gerado em ' + new Date().toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' });
+    document.querySelector('[data-aba="painel"]').click();
+    setTimeout(() => window.print(), 100);
   }
 
   /* ---------- enviar ---------- */
@@ -123,23 +213,18 @@ Recomendação da ferramenta: ${textoDe('#pedRec')}`);
       const r = await fetch('api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contexto: contexto(), mensagens: conversa.slice(0, -1).slice(-20) }),
+        body: JSON.stringify({ contexto: contexto(), mensagens: historico(conversa.slice(0, -1)) }),
         signal: ctl.signal
       });
-      if (!r.ok) {
-        let code = r.status === 404 || r.status === 501 ? 'sem_servidor' : 'upstream_error';
-        try { code = (await r.json()).code || code; } catch (e) { }
-        throw { code };
-      }
-      const leitor = r.body.getReader(), dec = new TextDecoder();
-      for (;;) {
-        const { value, done } = await leitor.read();
-        if (done) break;
-        resp.content += dec.decode(value, { stream: true });
+      let bruto = '';
+      await lerResposta(r, parte => {
+        bruto += parte;
+        const { texto, sug } = separar(bruto);
+        resp.content = texto; resp.sug = sug;
         const ultima = el('chatMsgs').lastElementChild;
-        if (ultima) ultima.innerHTML = formatar(resp.content);
+        if (ultima && texto) ultima.innerHTML = formatar(texto);
         el('chatMsgs').scrollTop = el('chatMsgs').scrollHeight;
-      }
+      });
       if (!resp.content.trim()) throw { code: 'upstream_error' };
     } catch (e) {
       if (e?.name === 'AbortError') { if (!resp.content) resp.content = '_(interrompido)_'; }
@@ -153,6 +238,7 @@ Recomendação da ferramenta: ${textoDe('#pedRec')}`);
       apagada = null;
       guardar();
       desenhar();
+      desenharInsights();
     }
   }
 
@@ -185,6 +271,8 @@ Recomendação da ferramenta: ${textoDe('#pedRec')}`);
     el('chatBtn').addEventListener('click', () => abrir(!aberto));
     el('chatFechar').addEventListener('click', () => abrir(false));
     el('chatTopo').addEventListener('click', () => abrir(true));
+    el('insGerar').addEventListener('click', gerarInsights);
+    el('insPDF').addEventListener('click', exportarPDF);
     el('chatAviso').addEventListener('click', () => { el('chatAviso').hidden = true; abrir(true); });
     el('chatNova').addEventListener('click', () => {
       ctl?.abort();
@@ -201,6 +289,7 @@ Recomendação da ferramenta: ${textoDe('#pedRec')}`);
     });
     el('chatSug').addEventListener('click', e => { const s = e.target.closest('[data-sug]'); if (s) enviar(s.dataset.sug); });
     atualizar();
+    desenharInsights();
   }
 
   return { iniciar, atualizar };

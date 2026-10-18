@@ -94,6 +94,7 @@
 
   <!-- PAINEL 360 -->
   <section id="painel" class="aba ativa">
+    <p class="so-impressao imprimir mini muted" id="impData"></p>
     <div class="card">
       <h2>Painel 360 — <span data-out="produto"></span></h2>
       <div class="kpis" id="kpis360"></div>
@@ -105,6 +106,16 @@
     <div class="card">
       <h3>Leitura do Controller</h3>
       <ul class="leituras" id="leituras360"></ul>
+    </div>
+    <div class="card" id="cardInsights">
+      <div class="linha-tit"><h3>Insights da conversa com o Controller</h3><span class="mini muted" id="insData"></span></div>
+      <div class="insights" id="insightsTexto"></div>
+      <div class="acoes-ia">
+        <button class="btn" id="insGerar">Gerar insights da conversa</button>
+        <button class="btn ghost-dark" id="insPDF">📄 Exportar PDF (painel + insights)</button>
+        <label class="mini linha-chk"><input type="checkbox" id="insConversa"> incluir a conversa completa no PDF</label>
+      </div>
+      <div class="so-impressao" id="insConversaImp"></div>
     </div>
   </section>
 

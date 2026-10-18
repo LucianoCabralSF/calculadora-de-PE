@@ -113,6 +113,10 @@ details summary{cursor:pointer}
 .chat-btn.pulsa{animation:pulsa 1s ease-in-out 3}
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.12);box-shadow:0 0 0 8px rgba(201,138,18,.35)}}
 .chat-desfazer{font-size:.85rem;color:var(--muted);display:flex;align-items:center;gap:8px}
+.insights p{margin:0 0 6px}.insights ul{margin:2px 0 10px;padding-left:20px}.insights li{margin-bottom:4px}
+.linha-chk{display:flex;align-items:center;gap:6px;color:var(--muted)}.linha-chk input{width:auto}
+.so-impressao{display:none}
+.imp-msg{margin:0 0 10px;font-size:.9rem}.imp-msg p{margin:0 0 4px}
 .rodape{font-size:.8rem;text-align:center;padding:16px}
 
 @media (max-width:900px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:1fr 1fr}}
@@ -124,4 +128,6 @@ details summary{cursor:pointer}
   .topo{background:#fff;color:var(--tx);border-bottom:2px solid var(--pri)}
   .card{break-inside:avoid;border-color:#ccc}
   .aba{display:none!important} .aba.ativa{display:block!important}
+  .so-impressao.imprimir{display:block}
+  .acoes-ia{display:none!important}
 }
