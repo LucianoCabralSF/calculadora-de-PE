@@ -43,6 +43,9 @@ const CHAT = (() => {
     const partes = [
       `MODO: ${isServ() ? 'Serviços' : 'Produtos'} · forma de informar: ${isDRE() ? 'totais do mês (DRE), a unidade de análise é R$ 1 de receita' : 'por unidade (' + u + ')'}`,
       `PRODUTO/SERVIÇO: ${d.produto || '-'}`,
+      ...(d.caso ? [`CASO DESCRITO PELO USUÁRIO (texto original):
+${d.caso}`] : []),
+      ...(d.resumoIA ? [`O QUE A IA ENTENDEU AO IMPORTAR: ${d.resumoIA}`] : []),
       `DADOS BASE:\n${campos}`,
       `INDICADORES CALCULADOS:
 - Margem de contribuição por ${u}: ${brl(b.mcu)} · IMC (MC total ÷ receita bruta): ${pct(b.imc)}
@@ -100,7 +103,8 @@ Recomendação da ferramenta: ${textoDe('#pedRec')}`);
     box.innerHTML = (apagada && !conversa.length ? `<div class="chat-desfazer">Conversa anterior apagada. <button class="chip" id="chatDesfazer">Desfazer</button></div>` : '') +
       (conversa.length ? '' : `<div class="chat-boas">Olá! Sou seu <strong>controller consultivo</strong>. Já estou vendo os números que você alimentou. Pergunte o que quiser ou comece por uma sugestão:</div>`) +
       conversa.map(m => `<div class="chat-msg ${m.role === 'user' ? 'eu' : 'ia'}">${m.role === 'user' ? esc(m.content).replace(/\n/g, '<br>') : (m.content ? formatar(m.content) : '<span class="muted">Analisando os números...</span>')}</div>`).join('');
-    el('chatSug').innerHTML = conversa.length ? '' : SUGESTOES.map(s => `<button class="chip" data-sug="${esc(s)}">${esc(s)}</button>`).join('');
+    const sug = D().caso || D().resumoIA ? ['Avalie este caso e diga o que você recomenda', ...SUGESTOES.slice(1)] : SUGESTOES;
+    el('chatSug').innerHTML = conversa.length ? '' : sug.map(s => `<button class="chip" data-sug="${esc(s)}">${esc(s)}</button>`).join('');
     box.scrollTop = box.scrollHeight;
   }
 

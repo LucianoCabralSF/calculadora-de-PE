@@ -52,7 +52,8 @@ const DICAS = (() => {
     'abcA.q': 'Quantas vezes o direcionador acontece para este produto/serviço no mês.',
     'lin.d': 'Nome da linha como está no documento.', 'lin.v': 'Valor mensal da linha (sempre positivo).',
     'lin.g': 'Grupo da linha. Ao trocar, os totais e os dados base se recalculam. "Subtotal" não é somado, para não contar duas vezes.',
-    iaArquivo: 'Escolha um PDF, Word, Excel ou CSV com os números da empresa: DRE, planilha de custos, orçamento, proposta de cliente.',
+    iaArquivo: 'Escolha um ou mais arquivos: PDF, Word, Excel, CSV ou fotos/prints (JPG, PNG) de uma DRE, planilha ou slide. PDF escaneado também funciona.',
+    iaCaso: 'Escreva ou cole o caso com suas palavras: a situação da empresa, os números que você conhece e a decisão a tomar. A IA interpreta e preenche a calculadora; depois o Controller consultivo avalia o caso com você.',
     iaExtra: 'Opcional: diga à IA no que focar. Ex.: "use só a linha IPA", "valores de julho", "a capacidade é 2.000 horas".',
     chatTexto: 'Pergunte sobre os números que estão na calculadora. Enter envia; Shift+Enter quebra a linha.'
   };
@@ -63,8 +64,8 @@ const DICAS = (() => {
   document.body.appendChild(balao);
 
   function chave(el) {
-    const campo = el.closest('[data-k],[data-arr],[data-lin],[data-q],#iaArquivo,#iaExtra,#chatTexto') ||
-      el.closest('label.f, div.f')?.querySelector('[data-k],#iaArquivo,#iaExtra');
+    const campo = el.closest('[data-k],[data-arr],[data-lin],[data-q],#iaArquivo,#iaExtra,#iaCaso,#chatTexto') ||
+      el.closest('label.f, div.f')?.querySelector('[data-k],#iaArquivo,#iaExtra,#iaCaso');
     if (!campo) return [null, null];
     let k = campo.dataset.k || campo.id;
     if (campo.dataset.arr) k = campo.dataset.arr + '.' + (campo.dataset.q !== undefined ? 'q' : campo.dataset.f);

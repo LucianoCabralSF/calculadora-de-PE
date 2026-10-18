@@ -32,6 +32,7 @@ details.base summary{cursor:pointer;margin-bottom:12px}
 .full2{grid-column:span 2}
 .f{display:flex;flex-direction:column;gap:4px;font-size:.88rem;font-weight:500}
 .f small{color:var(--muted);font-weight:400;font-size:.78rem}
+.f textarea{font:inherit;padding:8px 10px;border:1px solid var(--borda);border-radius:8px;background:#fff;color:var(--tx);width:100%;resize:vertical}
 input,select{font:inherit;padding:8px 10px;border:1px solid var(--borda);border-radius:8px;background:#fff;color:var(--tx);width:100%;min-width:0}
 input:focus,select:focus{outline:2px solid var(--pri-2);border-color:transparent}
 .abas{display:flex;gap:4px;overflow-x:auto;margin-bottom:16px;border-bottom:2px solid var(--borda)}
