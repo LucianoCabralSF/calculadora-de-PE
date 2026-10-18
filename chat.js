@@ -5,19 +5,18 @@
 const CHAT = (() => {
   // Perguntas iniciais escolhidas conforme a situação dos números
   function sugestoesIniciais() {
-    const b = base(), d = D(), ex = EXEMPLOS[ST.modo], s = [];
-    const alterado = ks => ks.some(k => JSON.stringify(d[k]) !== JSON.stringify(ex[k]));
+    const b = base(), d = D(), s = [];
     if (d.caso || d.resumoIA) s.push('Avalie este caso e diga o que você recomenda');
     s.push('Qual é o diagnóstico geral desses números?');
     if (b.mcu <= 0) s.push('Por que o preço não cobre nem o custo variável?');
     else if (b.lucro < 0) s.push('O que fazer para sair do prejuízo?');
     else if (b.ms < 0.2) s.push('Minha margem de segurança é baixa. O que fazer?');
     if (b.preco - b.cheio - b.dvu < 0 && b.mcu > 0) s.push('O custo cheio diz prejuízo. Devo parar de vender?');
-    if (alterado(['pDesc', 'pq', 'pp', 'pcv', 'prat'])) s.push(`Devo aceitar ${isServ() ? 'a proposta' : 'o pedido'} especial?`);
+    if (secaoUsavel('pedido')) s.push(`Devo aceitar ${isServ() ? 'a proposta' : 'o pedido'} especial?`);
     if (ok(b.ocup) && b.ocup < 0.75) s.push('Como aproveitar a capacidade ociosa?');
     s.push(isDRE() ? 'Qual faturamento mínimo preciso e por quê?' : 'Explique o ponto de equilíbrio com meus números');
-    if (alterado(['mix', 'mixRec', 'mixH'])) s.push('Qual produto devo priorizar no gargalo?');
-    if (alterado(['abcP', 'abcA'])) s.push('O que o custeio ABC revela que o rateio esconde?');
+    if (secaoUsavel('mix')) s.push('Qual produto devo priorizar no gargalo?');
+    if (secaoUsavel('abc')) s.push('O que o custeio ABC revela que o rateio esconde?');
     s.push('Como posso melhorar a margem?', 'Onde estão os maiores riscos?');
     return [...new Set(s)].slice(0, 5);
   }
@@ -76,21 +75,20 @@ ${d.caso}`] : []),
     ];
     if (d.linhas?.length) partes.push(`LINHAS DO DOCUMENTO (descrição | valor mensal | grupo):\n` + tabelaLinhas());
     partes.push(`ABSORÇÃO x VARIÁVEL:\n${tabela('#dreAbs')}\n${tabela('#dreVar')}\n${textoDe('#alertaEstoque')}`);
-    // Abas que ainda estão com os números de exemplo da ferramenta não entram como dados do caso
-    const ex = EXEMPLOS[ST.modo];
-    const alterado = ks => ks.some(k => JSON.stringify(d[k]) !== JSON.stringify(ex[k]));
+    // Abas vazias ou que ainda estão com os números de exemplo da ferramenta não entram como dados do caso
     const ignoradas = [];
-    if (alterado(['pDesc', 'pq', 'pp', 'pcv', 'pdv', 'prat', 'pinc', 'pcan'])) partes.push(`PEDIDO/PROPOSTA ESPECIAL "${d.pDesc || ''}": quantidade ${d.pq}, preço ${d.pp}, custo variável ${d.pcv}, desp. variáveis ${d.pdv}%, rateio no relatório ${d.prat}, gastos extras ${d.pinc}, vendas perdidas ${d.pcan}
+    if (secaoUsavel('pedido')) partes.push(`PEDIDO/PROPOSTA ESPECIAL "${d.pDesc || ''}": quantidade ${d.pq}, preço ${d.pp}, custo variável ${d.pcv}, desp. variáveis ${d.pdv}%, rateio no relatório ${d.prat}, gastos extras ${d.pinc}, vendas perdidas ${d.pcan}
 ${tabela('#pedVar table')}
 ${textoDe('#pedEmpresa')}
 Recomendação da ferramenta: ${textoDe('#pedRec')}`);
     else ignoradas.push('pedido especial');
-    if (alterado(['mix', 'mixRec', 'mixH'])) partes.push(`MIX E GARGALO (recurso escasso: ${d.mixRec}, disponível ${d.mixH}):\n${tabela('#resMix')}\n${textoDe('#resMixMsg')}`);
+    if (secaoUsavel('mix')) partes.push(`MIX E GARGALO (recurso escasso: ${d.mixRec}, disponível ${d.mixH}):\n${tabela('#resMix')}\n${textoDe('#resMixMsg')}`);
     else ignoradas.push('mix e gargalo');
-    if (alterado(['abcP', 'abcA'])) partes.push(`CUSTEIO ABC:\n${tabela('#resAbc')}\n${textoDe('#resAbcMsg')}`);
+    if (secaoUsavel('abc')) partes.push(`CUSTEIO ABC:\n${tabela('#resAbc')}\n${textoDe('#resAbcMsg')}`);
     else ignoradas.push('custeio ABC');
-    if (!isDRE()) partes.push(`FORMAÇÃO DE PREÇO${alterado(['mkImp', 'mkCom', 'mkDF', 'mkLuc', 'pMerc', 'metaMg']) ? '' : ' (percentuais ainda são os de exemplo; use com cautela)'}:\n${textoDe('#resMk')}\n${textoDe('#resMeta')}`);
-    if (ignoradas.length) partes.push(`NÃO PREENCHIDO PELO USUÁRIO (ainda com números de exemplo, por isso não enviado): ${ignoradas.join(', ')}. Se for útil para a pergunta, sugira preencher.`);
+    if (!isDRE() && !secaoUsavel('preco')) ignoradas.push('formação de preço');
+    if (!isDRE() && secaoUsavel('preco')) partes.push(`FORMAÇÃO DE PREÇO:\n${textoDe('#resMk')}\n${textoDe('#resMeta')}`);
+    if (ignoradas.length) partes.push(`NÃO PREENCHIDO PELO USUÁRIO (vazio ou ainda com números de exemplo, por isso não enviado): ${ignoradas.join(', ')}. Se for útil para a pergunta, sugira preencher.`);
     return partes.join('\n\n').slice(0, 38000);
   }
   function tabelaLinhas() {
@@ -295,7 +293,22 @@ Recomendação da ferramenta: ${textoDe('#pedRec')}`);
     desenharInsights();
   }
 
-  return { iniciar, atualizar };
+  // "Começar do zero": apaga conversa e insights e devolve uma função que desfaz
+  function zerar() {
+    ctl?.abort();
+    const antes = { conversa, insights };
+    conversa = []; insights = null; apagada = null;
+    guardar();
+    try { localStorage.removeItem(CHAVE_INS); } catch (e) { }
+    desenhar(); desenharInsights();
+    return () => {
+      conversa = antes.conversa; insights = antes.insights; guardar();
+      try { if (insights) localStorage.setItem(CHAVE_INS, JSON.stringify(insights)); } catch (e) { }
+      desenhar(); desenharInsights();
+    };
+  }
+
+  return { iniciar, atualizar, zerar };
 })();
 
 CHAT.iniciar();

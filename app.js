@@ -153,7 +153,29 @@ const CHECKS = {
 /* ---------- estado ---------- */
 const CHAVE = 'calcController.v1';
 const clone = o => JSON.parse(JSON.stringify(o));
-let ST = { modo: 'produtos', aba: 'painel', produtos: clone(EXEMPLOS.produtos), servicos: clone(EXEMPLOS.servicos) };
+// Calculadora vazia, para começar do zero sem nenhum número de exemplo
+const ZERO = {
+  produto: '', un: '', preco: '', cv: '', dvp: '', cfp: '', df: '', naoDes: '', parc: '', lucroDes: '',
+  volVend: '', volProd: '', cap: '', desc: '10', forma: 'unidade', rec: '', cvT: '', dvT: '', capR: '', linhas: [],
+  pDesc: '', pq: '', pp: '', pcv: '', pdv: '', prat: '', pinc: '', pcan: '', chk: {},
+  mixRec: '', mixH: '', mix: [], abcP: [], abcA: [],
+  mkBase: 'cheio', mkImp: '', mkCom: '', mkDF: '', mkLuc: '', pMerc: '', metaMg: ''
+};
+// Uma seção entra na análise (chat e PDF) se tem dados e não é sobra do exemplo depois que a pessoa alimentou os dela
+const CHAVES_SECAO = {
+  pedido: ['pDesc', 'pq', 'pp', 'pcv', 'pdv', 'prat', 'pinc', 'pcan'],
+  mix: ['mix', 'mixRec', 'mixH'],
+  abc: ['abcP', 'abcA'],
+  preco: ['mkImp', 'mkCom', 'mkDF', 'mkLuc', 'pMerc', 'metaMg']
+};
+function secaoUsavel(sec) {
+  const d = D(), ex = EXEMPLOS[ST.modo];
+  const alterado = CHAVES_SECAO[sec].some(k => JSON.stringify(d[k]) !== JSON.stringify(ex[k]));
+  const vazia = sec === 'pedido' ? !(g('pq') > 0 && g('pp') > 0) : sec === 'mix' ? !d.mix.length : sec === 'abc' ? !d.abcP.length || !d.abcA.length : !(g('pMerc') > 0);
+  return !vazia && (!d.alimentado || alterado);
+}
+const temBase = () => isDRE() ? g('rec') > 0 : g('preco') > 0;
+let ST ={ modo: 'produtos', aba: 'painel', produtos: clone(EXEMPLOS.produtos), servicos: clone(EXEMPLOS.servicos) };
 try {
   const salvo = JSON.parse(localStorage.getItem(CHAVE));
   if (salvo && salvo.produtos && salvo.servicos) ST = { ...ST, ...salvo };
@@ -246,7 +268,8 @@ function renderPainel(b) {
   $('#angulos').innerHTML = ang.map(r => `<tr><td><strong>${r[0]}</strong></td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('');
 
   const L = [];
-  if (b.mcu <= 0) L.push(`<span class="neg">O preço não cobre nem o custo variável.</span> Cada venda aumenta o prejuízo. Rever preço ou custo variável é urgente.`);
+  if (!temBase()) L.push('Preencha os dados base (ou importe um documento em "Importar com IA") para ver a análise.');
+  else if (b.mcu <= 0) L.push(`<span class="neg">O preço não cobre nem o custo variável.</span> Cada venda aumenta o prejuízo. Rever preço ou custo variável é urgente.`);
   else if (resAbsU < 0) L.push(`<strong>Armadilha do rateio:</strong> pelo custo cheio, cada ${u} parece dar prejuízo de ${brl(-resAbsU)}, mas a margem de contribuição é positiva (${brl(b.mcu)}). Cortar vendas pioraria o resultado, porque o fixo continua.`);
   if (b.lucro < 0 && b.mcu > 0) L.push(`A operação está abaixo do equilíbrio: faltam <strong>${qtd(b.pec - b.volVend, us)}</strong> por mês para zerar o prejuízo.`);
   else if (b.mcu > 0 && b.ms < .15) L.push(`Margem de segurança baixa (${pct(b.ms)}): uma queda pequena nas vendas já leva ao prejuízo.`);
@@ -273,7 +296,8 @@ function renderAbsorcao(b) {
     ['Custo cheio (variável + rateio)', brl(b.cheio)]
   ]) + '</tbody>';
 
-  $('#alertaAbs').innerHTML = b.mcu <= 0
+  $('#alertaAbs').innerHTML = !temBase() ? aviso('alerta', 'Preencha os dados base para comparar os dois métodos.')
+    : b.mcu <= 0
     ? aviso('ruim', `Margem de contribuição negativa: o preço não paga nem o variável. Aqui as duas visões concordam: há prejuízo real em cada ${u}.`)
     : resAbsU < 0
       ? aviso('alerta', `<strong>Atenção à armadilha.</strong> O relatório contábil mostra prejuízo de ${brl(-resAbsU)} por ${u}. Mas cada venda deixa <strong>${brl(b.mcu)}</strong> por ${u} para pagar a estrutura. Os ${brl(b.cfu)} de rateio continuariam existindo se a venda parasse.`)
@@ -459,7 +483,8 @@ function renderPedido(b) {
     ? ['escopo fechado com limite de horas e cobrança de adicionais', 'preço tratado como condição especial e pontual, por escrito', 'alocar a equipe ociosa, preservando os profissionais-chave dos clientes estratégicos']
     : ['vender sem a marca principal (marca do cliente ou secundária)', 'contrato de lote único com sigilo sobre o preço', 'garantir que a produção regular e a qualidade não sejam afetadas'];
   let rec;
-  if (resGer <= 0) rec = aviso('ruim', `<strong>Recomendação: recusar ou renegociar.</strong> Mesmo pela visão gerencial a empresa fica ${brl(-resGer)} pior. Só vale a pena acima de ${brl(piso)} por ${u}.`);
+  if (!(q > 0 && p > 0)) rec = aviso('alerta', `Preencha a quantidade e o preço ${isServ() ? 'da proposta' : 'do pedido'} para ver a recomendação.`);
+  else if (resGer <= 0) rec =aviso('ruim', `<strong>Recomendação: recusar ou renegociar.</strong> Mesmo pela visão gerencial a empresa fica ${brl(-resGer)} pior. Só vale a pena acima de ${brl(piso)} por ${u}.`);
   else if (nivel === 'baixo') rec = aviso('ok', `<strong>Recomendação: aceitar.</strong> A empresa ganha ${brl(resGer)} usando estrutura que ficaria parada, e o risco qualitativo é baixo (pontuação ${score}).`);
   else if (nivel === 'moderado') rec = aviso('alerta', `<strong>Recomendação: aceitar com condições.</strong> Ganho de ${brl(resGer)} no mês, com risco qualitativo moderado (pontuação ${score}). Condições sugeridas: ${condicoes.join('; ')}.`);
   else rec = aviso('ruim', `<strong>Recomendação: só aceitar se der para reduzir os riscos.</strong> O ganho de ${brl(resGer)} é real, mas o risco estratégico é alto (pontuação ${score}). Avaliar: ${condicoes.join('; ')}.`);
@@ -474,6 +499,11 @@ function renderMixTabela() {
     rows.map((r, i) => `<tr>${['nome', 'preco', 'cv', 'dvp', 'dem', 'h'].map(f => `<td><input data-arr="mix" data-i="${i}" data-f="${f}" value="${esc(r[f])}"></td>`).join('')}<td><button class="btn x" data-del="mix" data-i="${i}" title="Remover">×</button></td></tr>`).join('') + '</tbody>';
 }
 function renderMix() {
+  if (!D().mix.length) {
+    $('#resMix').innerHTML = '';
+    $('#resMixMsg').innerHTML = aviso('alerta', 'Inclua os produtos ou serviços na tabela acima (botão "+ incluir linha") e informe o recurso escasso.');
+    return;
+  }
   const H = g('mixH'), rec = D().mixRec || 'recurso';
   const P = D().mix.map(r => {
     const preco = parse(r.preco), cv = parse(r.cv), dv = preco * parse(r.dvp) / 100, h = parse(r.h), dem = parse(r.dem);
@@ -517,6 +547,11 @@ function renderAbcTabelas() {
       `<td><button class="btn x" data-del="abcA" data-i="${i}" title="Remover">×</button></td></tr>`).join('') + '</tbody>';
 }
 function renderAbc() {
+  if (!D().abcP.length || !D().abcA.length) {
+    $('#resAbc').innerHTML = '';
+    $('#resAbcMsg').innerHTML = aviso('alerta', 'Inclua pelo menos um produto/serviço e uma atividade (botões "+") para comparar o rateio tradicional com o ABC.');
+    return;
+  }
   const P = D().abcP.map(p => ({ nome: p.nome, vol: parse(p.vol), preco: parse(p.preco), cv: parse(p.cv), base: parse(p.base) }));
   const A = D().abcA.map(a => ({ nome: a.nome, dir: a.dir, custo: parse(a.custo), q: P.map((_, j) => parse(a.q[j])) }));
   const totalCI = A.reduce((s, a) => s + a.custo, 0);
@@ -565,6 +600,11 @@ function renderPreco(b) {
   }
 
   const pm = g('pMerc'), mg = g('metaMg') / 100;
+  if (!(pm > 0)) {
+    $('#resMeta').innerHTML = aviso('alerta', 'Informe o preço que o mercado aceita para calcular o custo-meta.');
+    $('#faixa').innerHTML = '';
+    return;
+  }
   const ded = pm * (m.imp + m.com), dfx = pm * m.dfp, marg = pm * mg;
   const alvo = pm - ded - dfx - marg, gap = b.cheio - alvo;
   $('#resMeta').innerHTML = `<table class="tab num" style="margin-top:12px"><tbody>` + linhas([
@@ -690,27 +730,47 @@ document.addEventListener('click', e => {
     D().abcA.forEach(a => a.q.push('0')); renderAbcTabelas(); calcular();
   } else if (el.id === 'btnExemplo') {
     ST[ST.modo] = clone(EXEMPLOS[ST.modo]); tudo();
+  } else if (el.id === 'btnZerar') {
+    // Começar do zero: esvazia o modo atual e a conversa do chat; dá para desfazer por alguns segundos
+    const antes = clone(ST[ST.modo]);
+    const voltarChat = typeof CHAT !== 'undefined' ? CHAT.zerar() : null;
+    ST[ST.modo] = clone(ZERO);
+    tudo();
+    avisoTopo(`Calculadora zerada no modo ${isServ() ? 'Serviços' : 'Produtos'}. Preencha os dados ou importe um documento.`, () => {
+      ST[ST.modo] = antes; voltarChat?.(); tudo();
+    });
+  } else if (el.id === 'avisoDesfazer') {
+    desfazerAviso?.(); desfazerAviso = null; $('#avisoTopo').hidden = true;
   } else if (el.id === 'btnImprimir') {
     window.print();
   }
 });
 
-// Relatório em PDF: imprime todas as abas; deixa de fora as que ainda estão com números de exemplo
-// (só quando a pessoa já alimentou os próprios dados — o exemplo puro sai completo)
+// Aviso no topo da tela com botão Desfazer (some sozinho)
+let desfazerAviso = null, avisoTimerTopo = null;
+function avisoTopo(texto, aoDesfazer) {
+  $('#avisoTopoTexto').textContent = texto;
+  desfazerAviso = aoDesfazer;
+  $('#avisoTopo').hidden = false;
+  clearTimeout(avisoTimerTopo);
+  avisoTimerTopo = setTimeout(() => { $('#avisoTopo').hidden = true; desfazerAviso = null; }, 10000);
+}
+
+// Relatório em PDF: imprime todas as abas; deixa de fora as vazias e as que ainda estão com números de exemplo
+// (sobras do exemplo só saem quando a pessoa ainda não alimentou os próprios dados)
 let baseAberta = true;
 window.addEventListener('beforeprint', () => {
-  const d = D(), ex = EXEMPLOS[ST.modo], fora = [];
-  const alterado = ks => ks.some(k => JSON.stringify(d[k]) !== JSON.stringify(ex[k]));
-  const marcar = (id, ks, nome) => {
-    const omitir = !!d.alimentado && !alterado(ks);
-    $('#' + id).classList.toggle('nao-imprimir', omitir);
+  const fora = [];
+  const marcar = (sec, nome) => {
+    const omitir = !secaoUsavel(sec);
+    $('#' + sec).classList.toggle('nao-imprimir', omitir);
     if (omitir) fora.push(nome);
   };
-  marcar('pedido', ['pDesc', 'pq', 'pp', 'pcv', 'pdv', 'prat', 'pinc', 'pcan'], isServ() ? 'proposta especial' : 'pedido especial');
-  marcar('mix', ['mix', 'mixRec', 'mixH'], 'mix e gargalo');
-  marcar('abc', ['abcP', 'abcA'], 'custeio ABC');
-  $('#preco').classList.toggle('nao-imprimir', isDRE());
-  if (isDRE()) fora.push('formação de preço (precisa de dados por unidade)');
+  marcar('pedido', isServ() ? 'proposta especial' : 'pedido especial');
+  marcar('mix', 'mix e gargalo');
+  marcar('abc', 'custeio ABC');
+  if (isDRE()) { $('#preco').classList.add('nao-imprimir'); fora.push('formação de preço (precisa de dados por unidade)'); }
+  else marcar('preco', 'formação de preço');
   $('#impOmitidas').textContent = fora.length ? `Fora deste relatório (ainda com números de exemplo ou sem dados): ${fora.join(', ')}.` : '';
   $('#impData').textContent = 'Relatório gerado em ' + new Date().toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' });
   const det = $('details.base');
