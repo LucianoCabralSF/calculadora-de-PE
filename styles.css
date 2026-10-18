@@ -124,11 +124,16 @@ details summary{cursor:pointer}
 
 @media print{
   body{background:#fff;font-size:12px}
-  .topo .acoes,.abas,details.base,.card.ia,#cardLinhas,.btn,.chat-btn,.chat-painel,.chat-aviso,.dica{display:none!important}
+  .topo .acoes,.abas,.card.ia,.btn,.chat-btn,.chat-painel,.chat-aviso,.dica,.acoes-ia,details.base>p.mini{display:none!important}
   .topo{background:#fff;color:var(--tx);border-bottom:2px solid var(--pri)}
   .card{break-inside:avoid;border-color:#ccc}
-  .aba{display:none!important} .aba.ativa{display:block!important}
+  #cardInsights,#cardLinhas{break-inside:auto}
+  /* Relatório completo: todas as abas, cada uma em página nova, com título */
+  .aba{display:block!important;break-before:page}
+  .aba::before{content:attr(data-titulo);display:block;font-size:18px;font-weight:700;color:var(--pri);border-bottom:2px solid var(--acento);padding-bottom:4px;margin:0 0 12px}
+  .aba.nao-imprimir,#conceitos{display:none!important}
   .so-impressao.imprimir{display:block}
-  #cardInsights{break-inside:auto}
-  .acoes-ia{display:none!important}
+  input,select,textarea{border:0;padding:2px 0;background:transparent}
+  .aba .grid.g2{grid-template-columns:1fr}
+  .rolagem{overflow:visible}
 }

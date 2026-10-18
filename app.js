@@ -695,6 +695,29 @@ document.addEventListener('click', e => {
   }
 });
 
+// Relatório em PDF: imprime todas as abas; deixa de fora as que ainda estão com números de exemplo
+// (só quando a pessoa já alimentou os próprios dados — o exemplo puro sai completo)
+let baseAberta = true;
+window.addEventListener('beforeprint', () => {
+  const d = D(), ex = EXEMPLOS[ST.modo], fora = [];
+  const alterado = ks => ks.some(k => JSON.stringify(d[k]) !== JSON.stringify(ex[k]));
+  const marcar = (id, ks, nome) => {
+    const omitir = !!d.alimentado && !alterado(ks);
+    $('#' + id).classList.toggle('nao-imprimir', omitir);
+    if (omitir) fora.push(nome);
+  };
+  marcar('pedido', ['pDesc', 'pq', 'pp', 'pcv', 'pdv', 'prat', 'pinc', 'pcan'], isServ() ? 'proposta especial' : 'pedido especial');
+  marcar('mix', ['mix', 'mixRec', 'mixH'], 'mix e gargalo');
+  marcar('abc', ['abcP', 'abcA'], 'custeio ABC');
+  $('#preco').classList.toggle('nao-imprimir', isDRE());
+  if (isDRE()) fora.push('formação de preço (precisa de dados por unidade)');
+  $('#impOmitidas').textContent = fora.length ? `Fora deste relatório (ainda com números de exemplo ou sem dados): ${fora.join(', ')}.` : '';
+  $('#impData').textContent = 'Relatório gerado em ' + new Date().toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' });
+  const det = $('details.base');
+  baseAberta = det.open; det.open = true;
+});
+window.addEventListener('afterprint', () => { $('details.base').open = baseAberta; });
+
 // abre na última aba usada
 $$('.abas button').forEach(b => b.classList.toggle('ativa', b.dataset.aba === ST.aba));
 $$('.aba').forEach(s => s.classList.toggle('ativa', s.id === ST.aba));
