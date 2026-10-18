@@ -116,9 +116,15 @@
       <div class="insights" id="insightsTexto"></div>
       <div class="acoes-ia">
         <button class="btn" id="insGerar">Gerar insights da conversa</button>
-        <button class="btn ghost-dark" id="insPDF">📄 Exportar PDF (painel + insights)</button>
+        <button class="btn ghost-dark" id="insPDF">📄 Exportar PDF (relatório completo)</button>
         <label class="mini linha-chk"><input type="checkbox" id="insConversa"> incluir a conversa completa no PDF</label>
       </div>
+      <div class="acoes-ia slides-acoes">
+        <button class="btn" id="slApresentar">🖥️ Apresentar</button>
+        <button class="btn ghost-dark" id="slPptx">📊 Exportar slides (.pptx)</button>
+        <label class="mini linha-chk"><input type="checkbox" id="slIA" checked> títulos-mensagem escritos pela IA</label>
+      </div>
+      <div id="slStatus"></div>
       <div class="so-impressao" id="insConversaImp"></div>
     </div>
   </section>
@@ -296,7 +302,21 @@
     <div class="grid g3" id="glossario"></div>
   </section>
 
-  <footer class="rodape muted">Baseado no material "Custos, Sistemas de Custeio, Gestão e Formação de Preço" (pré-work do MBA). Exemplo de Produtos: caso Microcervejaria Lúpulo Dourado. Exemplo de Serviços: consultoria fictícia. Números que o caso não informa são ilustrativos.</footer>
+  <footer class="rodape">
+    <div class="rodape-del">
+      <div>
+        <div class="rodape-kicker">DEL / LÓTUS DESENVOLVIMENTO HUMANO E GERENCIAL</div>
+        <p><strong>Quer um sistema como este para você ou para a sua empresa?</strong><br>
+        Desenvolvido por <strong>Luciano Cabral Ferreira</strong>. Conte o que você precisa e receba uma proposta.</p>
+        <p class="so-impressao imprimir mini">Orçamento: del-azure-eight.vercel.app/diagnostico-sistema.html</p>
+      </div>
+      <div class="rodape-links">
+        <a class="btn" href="https://del-azure-eight.vercel.app/diagnostico-sistema.html" target="_blank" rel="noopener">Solicitar orçamento de sistema</a>
+        <a class="btn ghost-dark" href="https://del-azure-eight.vercel.app/" target="_blank" rel="noopener">Conheça a DEL</a>
+      </div>
+    </div>
+    <p class="muted mini">Baseado no material "Custos, Sistemas de Custeio, Gestão e Formação de Preço" (pré-work do MBA). Exemplo de Produtos: caso Microcervejaria Lúpulo Dourado. Exemplo de Serviços: consultoria fictícia. Números que o caso não informa são ilustrativos.</p>
+  </footer>
 </main>
 
 <div id="chatAviso" class="chat-aviso" hidden>O chat continua aqui. Clique para reabrir 👇</div>
@@ -315,10 +335,21 @@
   <p class="chat-rodape">A IA pode errar. Confira os números antes de decidir.</p>
 </section>
 
+<div id="apresentacao" class="apresentacao" hidden aria-label="Modo apresentação">
+  <div id="apPalco" class="ap-palco"></div>
+  <div class="ap-nav">
+    <button id="apAnt" title="Slide anterior (←)">‹</button>
+    <span id="apContador"></span>
+    <button id="apProx" title="Próximo slide (→)">›</button>
+    <button id="apFechar" title="Sair (Esc)">Sair ✕</button>
+  </div>
+</div>
+
 <script src="app.js"></script>
 <script src="dre.js"></script>
 <script src="dicas.js"></script>
 <script src="ia.js"></script>
 <script src="chat.js"></script>
+<script src="slides.js"></script>
 </body>
 </html>
