@@ -129,5 +129,6 @@ details summary{cursor:pointer}
   .card{break-inside:avoid;border-color:#ccc}
   .aba{display:none!important} .aba.ativa{display:block!important}
   .so-impressao.imprimir{display:block}
+  #cardInsights{break-inside:auto}
   .acoes-ia{display:none!important}
 }

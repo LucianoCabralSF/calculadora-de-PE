@@ -140,6 +140,8 @@ const IA = (() => {
       if (temValor(v) && k in NOMES) alvo[k] = v.trim();
     });
     copia(r.base); copia(r.pedido); copia(r.preco); copia({ mixRec: r.mixRec, mixH: r.mixH });
+    // Campos opcionais que o material não informa não podem ficar com o número de exemplo da ferramenta
+    ['lucroDes', 'cap'].forEach(k => { if (!temValor(r.base?.[k]) && alvo[k] === EXEMPLOS[modo][k]) alvo[k] = ''; });
     const listas = [];
     if (Array.isArray(r.mix) && r.mix.length) { alvo.mix = r.mix.map(x => ({ nome: x.nome || 'Item', preco: x.preco || '0', cv: x.cv || '0', dvp: x.dvp || '0', dem: x.dem || '0', h: x.h || '0' })); listas.push(`${r.mix.length} itens no Mix`); }
     if (Array.isArray(r.abcP) && r.abcP.length) {
